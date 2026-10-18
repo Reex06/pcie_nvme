@@ -1,0 +1,31 @@
+{
+  "configurations": [
+    {
+      "name": "arm64-kernel",
+      "includePath": [
+        "${workspaceFolder}/driver",
+        "${workspaceFolder}/../qemu/linux-6.5/include",
+        "${workspaceFolder}/../qemu/linux-6.5/include/uapi",
+        "${workspaceFolder}/../qemu/linux-6.5/arch/arm64/include",
+        "${workspaceFolder}/../qemu/linux-6.5/arch/arm64/include/uapi",
+        "${workspaceFolder}/../qemu/linux-6.5/arch/arm64/include/generated",
+        "${workspaceFolder}/../qemu/linux-6.5/arch/arm64/include/generated/uapi",
+        "${workspaceFolder}/../qemu/linux-6.5/include/generated",
+        "${workspaceFolder}/../qemu/linux-6.5/include/generated/uapi",
+        "/usr/lib/gcc-cross/aarch64-linux-gnu/11/include"
+      ],
+      "defines": [
+        "__KERNEL__",
+        "MODULE",
+        "__aarch64__"
+      ],
+      "forcedInclude": [
+        "${workspaceFolder}/../qemu/linux-6.5/include/linux/kconfig.h"
+      ],
+      "compilerPath": "/usr/bin/aarch64-linux-gnu-gcc",
+      "cStandard": "gnu11",
+      "intelliSenseMode": "linux-gcc-arm64"
+    }
+  ],
+  "version": 4
+}

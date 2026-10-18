@@ -1,0 +1,17 @@
+# ===== 内核模块编译产物 =====
+*.o
+*.ko
+*.mod
+*.mod.c
+*.mod.o
+*.symvers
+*.order
+.*.cmd
+.*.d
+.tmp_versions/
+
+# ===== Claude Code 本地配置（个人覆盖，机器特定）=====
+.claude/
+
+# ===== clangd 编译数据库（含本机绝对路径，换机需重建）=====
+compile_commands.json

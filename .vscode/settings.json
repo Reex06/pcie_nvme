@@ -1,0 +1,10 @@
+{
+  // 用 clangd 替代 cpptools 的 IntelliSense，两者不能同时启用
+  "C_Cpp.intelliSenseEngine": "disabled",
+  "clangd.arguments": [
+    "--background-index",
+    "--compile-commands-dir=${workspaceFolder}",
+    "--header-insertion=never",
+    "--completion-style=detailed"
+  ]
+}
