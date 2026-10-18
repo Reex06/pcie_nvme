@@ -23,14 +23,31 @@
 
 ## 一、学习路线（7 阶段，由浅入深）
 
-### 阶段 0：环境跑通（半天，照做即可）
-**目标**：能启动 QEMU，看到内核启动日志，理解每一行启动参数。
-**做什么**：
-1. 看懂 `start_qemu_virt.sh` 每一行：`-M virt,gic-version=3`（机器+GIC 版本）、`-cpu cortex-a53`、`-smp 2`、`-kernel`（内核镜像）、`-initrd`（根文件系统）、`-device nvme`（挂 NVMe 设备）、`-drive`（后端磁盘镜像）。
-2. 手动跑 `./start_qemu_virt.sh`，`insmod /pcie_nvme.ko`，`ls /dev/nvme0n1`，`dd` 读写。
-3. 理解三个概念：**内核镜像**（Image）、**根文件系统**（rootfs，busybox 做的 init）、**设备树/QEMU 机器描述**（virt 机器）。
-**验收**：能自己说出「一个 Linux 系统是怎么从 Image + rootfs 启动起来的」。
-**对应项目**：`README.md` 二、六节。
+### 阶段 0：环境跑通 + QEMU 学到什么程度（1~3 天）
+
+**定位先想清楚**：QEMU 对你（驱动/BSP 岗）是「开发调试环境」，不是学习目标。要学的是「会用 + 能讲清原理和差异」，**不要学** KVM/虚拟化加速原理、QEMU 设备模型开发（那是虚拟化岗的事）。
+
+**第一层：必须会（第 1 天，跑通即达标）**
+1. 看懂 `start_qemu_virt.sh` 每一行：`-M virt,gic-version=3`（机器模型=虚拟 ARM 主板定义，含 GIC/PCIe host 拓扑）、`-cpu cortex-a53`、`-smp 2`（2 核）、`-m 512M`（内存）、`-kernel`（内核镜像 Image）、`-initrd`（根文件系统）、`-append "console=ttyAMA0 rdinit=/init"`（串口 + 首个用户态进程）、`-device nvme,serial=deadbeef,drive=nvme0`（**设备前端**）、`-drive file=...,if=none,id=nvme0`（**存储后端**）、`-nographic`（无图形，串口当终端）。
+2. 理解三个概念：**内核镜像**（Image）、**根文件系统**（rootfs，busybox 做 /init）、**机器模型**（virt：QEMU 用软件定义的一台"虚拟主板"，NVMe/PCIe host 都是它虚拟出来的）。
+3. 跑通全流程：启动 → `insmod /pcie_nvme.ko` → `ls /dev/nvme0n1` → `dd` 读写 MATCH → 退出（`Ctrl+a` 然后 `x`）。
+
+**第二层：应该会（第 2~3 天，面试差异化）**
+4. **QEMU monitor 调试**：启动时按 `Ctrl+a c` 进 monitor，`info pci` 看 PCIe 设备枚举结果（能看到 QEMU NVMe 的 vendor/device ID），`info qtree` 看设备拓扑，`x/np addr` 查看内存。
+5. **GDB 联调内核/驱动**：`-s -S` 挂起等 GDB 连，宿主机 `gdb-multiarch vmlinux` + `target remote :1234`，可对驱动函数打断点单步——这是驱动开发的核心调试手段，面试能讲。
+6. **读 QEMU 的 NVMe 模拟源码**（`qemu/hw/nvme/ctrl.c`，本项目 QEMU 源码在 `../qemu` 下）：看懂三条关键逻辑——
+   - `nvme_mmio_write` 收到 doorbell 写 → 调 `nvme_process_sq` 取命令、模拟执行
+   - 执行完写 CQE 到 CQ 内存 → 按 IV 调 `msix_notify` 注入 MSI-X 中断
+   - `irq_loss` 属性：QEMU NVMe 设备参数，置 1 时模拟"丢中断"（只写 CQE 不发中断）——本项目阶段 5b 的验证手段就靠它
+   看完你会恍然大悟：**驱动敲的每一个 doorbell 都进了 QEMU 的模拟函数，你发出的每个 MSI-X 都是 QEMU 的软件注入**。这是理解"虚拟设备 vs 真实设备"最直观的方式。
+
+**第三层：面试必能讲（不是学，是能答）**
+7. QEMU 与真机差异 5 个维度（背 `INTERVIEW.md` Q2 表格）：时序非实时、中断是软件注入、DMA 是 memcpy 模拟、无 IOMMU/SMMU、错误注入可控（真机无法随意丢中断，QEMU 一个参数搞定）。
+8. fio 数据的正确解读：QEMU 上的数字证明「多队列架构带来收益」，不代表真实性能上限；面试官若质疑就说"模拟环境瓶颈在 CPU 软件模拟，真机上收益只会更明显"。
+9. 为什么驱动学习选 QEMU：零硬件成本、可 GDB 单步、可注入故障（丢中断）——后两点真机上几乎做不到，这是本项目验证手段完整性的关键。
+
+**验收**：能逐行解释 `start_qemu_virt.sh`；能用 monitor 查到 QEMU NVMe 的 PCI 信息；能讲清"我驱动里敲 doorbell 后，QEMU 内部发生了什么"。
+**对应项目**：`README.md` 二、六节；QEMU 源码 `../qemu/hw/nvme/ctrl.c`。
 
 ### 阶段 1：块设备子系统（正点原子视频，1~2 周）
 **这是整个项目最核心的地基**。NVMe 驱动本质上就是「一个注册到 blk-mq 框架的块设备驱动」。
