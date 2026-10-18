@@ -15,6 +15,7 @@
 | 3 | I/O 队列 + blk-mq + Write/Read + PRP | `/dev/nvme0n1` 注册，dd 4K/64K 写读 MATCH | ✅ |
 | 4 | MSI-X 中断 + 异步完成 | 中断计数 2→10，dd MATCH，`msix_enabled=1` | ✅ |
 | 5 | 多队列扩展（每 CPU 一队列 + 独立 MSI-X 向量） | `-smp 2` 下 2 个 `nvme-io` 中断行（irq=23/24），dd MATCH，两队列中断均增长 | ✅ |
+| 5b | I/O 命令超时处理（丢中断时 poll CQ 恢复） | `irq_loss=1` 模拟丢中断，超时回调 poll CQ 恢复，dd MATCH，rmmod 干净 | ✅ |
 | 文档 | README.md 定稿（选题/环境/五阶段/8 个踩坑 + 多队列考点/技术链路） | — | ✅ |
 
 **今日关键环境调整**
@@ -24,23 +25,15 @@
 **代码现状**（`driver/pcie_nvme.c`）
 - 多 I/O 队列（`nr_queues=min(num_online_cpus(), MQES+1)`），多 hctx，多 MSI-X 向量（`IV=qid-1`）。
 - Admin 命令同步轮询完成；I/O 命令 MSI-X 中断异步完成。
-- 无 I/O 超时处理、无 NVMe status code 细分处理。
+- 已有 I/O 超时处理（`tag_set.timeout` + `nvme_timeout` 回调 + `irq_loss` 模拟丢中断）；无 NVMe status code 细分处理。
 
 ---
 
 ## 二、待执行方案
 
-### 阶段5b：I/O 命令超时处理
+### 阶段5b：I/O 命令超时处理 ✅（已完成）
 
-**目标**：设备不响应（不产生中断）时，request 不能永久挂起。
-
-**改动点**：
-1. `nvme_mq_ops` 加 `.timeout = nvme_timeout`。
-2. `queue_rq` 里 `blk_mq_start_request` 后 `blk_mq_rq_timeout(rq, NVME_IO_TIMEOUT)`（如 30s）。
-3. `nvme_timeout` 回调：打印卡住的 request（tag/opcode），记录超时计数；简单版可直接 `blk_mq_complete_request(rq)` 返回错误，进阶版发 NVMe Abort 命令或 `nvme_disable_ctrl` 复位控制器。
-4. 涉及「在途命令追踪」：需要 per-command 状态记录（pdu 已可存），便于 timeout 时定位。
-
-**验证**：临时在中断处理里 `return IRQ_NONE` 模拟丢中断，观察 timeout 触发、request 被回收、不 hang。
+实现 `tag_set.timeout` + `nvme_mq_ops.timeout = nvme_timeout`：超时回调先 `nvme_process_cq` poll CQ（覆盖丢中断），request 已结束则返回 `BLK_EH_DONE`，否则 `BLK_EH_RESET_TIMER` 重置计时器继续等。模块参数 `irq_loss=1` 模拟丢中断验证 dd 不 hang。详见 README 阶段5b + 坑 9。
 
 ### 阶段5c：NVMe Status Code 细分处理
 
@@ -67,6 +60,5 @@
 
 ## 三、优先级建议
 
-1. **阶段5b 超时**（补健壮性，面试常问「命令不完成怎么办」）。
-2. **阶段5c status code 细分**（补完成路径正确性）。
-3. 阶段6（中断亲和/中断合并/SGL/fio 多队列吞吐对比）按时间取舍。
+1. **阶段5c status code 细分**（补完成路径正确性）。
+2. 阶段6（中断亲和/中断合并/SGL/fio 多队列吞吐对比）按时间取舍。

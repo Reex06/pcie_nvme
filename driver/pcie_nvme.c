@@ -1,22 +1,23 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * pcie_nvme.c - 阶段5：多队列扩展（每 CPU 一个 I/O 队列 + 独立 MSI-X 向量）
+ * pcie_nvme.c - 阶段5b：I/O 命令超时处理（基于阶段5多队列）
  *
  * 阶段1：PCIe 枚举 + BAR0 映射 + MMIO 寄存器读取。
  * 阶段2：控制器初始化 + Admin Queue + Identify Controller 命令往返。
  * 阶段3：I/O 队列 + Write/Read + PRP，同步轮询打通数据通路。
  * 阶段4：MSI-X 中断 + 异步完成（blk_mq_complete_request + .complete 回调）。
- * 本阶段新增（单队列 -> 每 CPU 一队列）：
- *   1. nr_queues = min(num_online_cpus(), MQES+1)，每队列独立 SQ/CQ
- *   2. 每队列绑定独立 MSI-X 向量（Create I/O CQ 的 IV=qid-1）
- *   3. blk-mq nr_hw_queues=nr_queues，init_hctx 按 hctx_idx 分发到队列
- *   4. command_id=rq->tag 在多 hctx 下仍 per-hctx 唯一
+ * 阶段5：多队列扩展（每 CPU 一个 I/O 队列 + 独立 MSI-X 向量 IV=qid-1）。
+ * 本阶段新增（I/O 命令超时）：
+ *   1. blk_mq_rq_timeout 设命令超时，nvme_mq_ops.timeout 回调处理
+ *   2. 超时回调主动 poll CQ，区分「中断丢失（CQE 已就绪）」与「设备卡死」
+ *   3. irq_loss 模块参数做故障注入，验证中断丢失时的超时恢复
  *
  * 面试考点：
  *   - MSI-X 与 NVMe 的对应关系：每个 I/O CQ 一个中断向量（IV 字段绑定）
  *   - command_id 复用 blk-mq 的 tag，完成时 blk_mq_tag_to_rq 反向映射
  *   - 中断上半部收割 CQ + 敲 CQ head doorbell，下半部由 block 层 softirq 完成
  *   - PRP 是 NVMe 传数据的核心：单页走 PRP1，多页 PRP1+PRP2 指向 PRP list 页
+ *   - 超时≠必然丢数据：先 poll CQ 区分中断丢失（可恢复）与设备真卡死
  */
 
 #include <linux/module.h>
@@ -83,6 +84,8 @@
 #define NVME_ADMIN_Q_DEPTH  32   /* Admin SQ/CQ 深度 */
 #define NVME_IO_Q_DEPTH     64   /* I/O SQ/CQ 深度 */
 #define NVME_MAX_SEGS       128  /* 单请求最多 scatter-gather 段数 */
+
+#define NVME_IO_TIMEOUT_DEFAULT 30 /* I/O 命令默认超时（秒） */
 
 /* NVMe 提交队列项 SQE，固定 64 字节 */
 struct nvme_sqe {
@@ -186,6 +189,15 @@ static const struct pci_device_id pcie_nvme_id_table[] = {
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, pcie_nvme_id_table);
+
+/* 可调参数：I/O 超时时间（秒）与中断丢失故障注入（验证用） */
+static unsigned int io_timeout = NVME_IO_TIMEOUT_DEFAULT;
+module_param(io_timeout, uint, 0444);
+MODULE_PARM_DESC(io_timeout, "I/O 命令超时时间（秒），默认 30");
+
+static bool irq_loss;
+module_param(irq_loss, bool, 0444);
+MODULE_PARM_DESC(irq_loss, "模拟中断丢失（不收割 CQ），验证超时恢复");
 
 /* 前向声明：中断处理函数（nvme_alloc_io_queue 里 request_irq 引用） */
 static irqreturn_t nvme_irq(int irq, void *data);
@@ -572,10 +584,9 @@ static void nvme_mq_complete(struct request *rq)
 	blk_mq_end_request(rq, ret);
 }
 
-/* MSI-X 中断处理：循环收割 CQ 直到 phase 不匹配，最后一次性敲 CQ head doorbell */
-static irqreturn_t nvme_irq(int irq, void *data)
+/* 收割 CQ 里所有 phase 匹配的 CQE，返回收割条数（成功完成的命令数） */
+static int nvme_process_cq(struct nvme_queue *q)
 {
-	struct nvme_queue *q = data;
 	struct nvme_cqe *cqe;
 	int handled = 0;
 
@@ -584,7 +595,7 @@ static irqreturn_t nvme_irq(int irq, void *data)
 		if ((le16_to_cpu(cqe->status) & 0x1) != q->cq_phase)
 			break;
 
-		handled = 1;
+		handled++;
 		nvme_complete_rq(q, cqe);
 
 		q->cq_head = (q->cq_head + 1) % q->q_depth;
@@ -592,11 +603,54 @@ static irqreturn_t nvme_irq(int irq, void *data)
 			q->cq_phase = !q->cq_phase;
 	}
 
-	if (handled) {
+	if (handled)
 		writel(q->cq_head, nvme_cq_doorbell(q->dev, q->qid));
-		return IRQ_HANDLED;
-	}
-	return IRQ_NONE;
+	return handled;
+}
+
+/* MSI-X 中断处理（irq_loss=1 时模拟丢中断，直接返回不收割） */
+static irqreturn_t nvme_irq(int irq, void *data)
+{
+	struct nvme_queue *q = data;
+
+	if (irq_loss)
+		return IRQ_NONE;
+
+	return nvme_process_cq(q) ? IRQ_HANDLED : IRQ_NONE;
+}
+
+/* blk-mq .timeout 回调（workqueue 上下文）：命令超时未完成时被 block 层调用 */
+static enum blk_eh_timer_return nvme_timeout(struct request *rq)
+{
+	struct nvme_queue *q = rq->mq_hctx->driver_data;
+	struct pcie_nvme_dev *dev = q->dev;
+
+	dev_warn(&dev->pdev->dev,
+		 "I/O 命令超时: qid=%u tag=%u dir=%s，主动轮询 CQ 恢复\n",
+		 q->qid, rq->tag, rq_data_dir(rq) == WRITE ? "WRITE" : "READ");
+
+	/*
+	 * 超时最常见原因是「中断丢失」：设备已写 CQE 但中断未被处理。
+	 * 主动收割 CQ 把已就绪的命令补完成；若恰好是本请求则随之结束。
+	 * 竞态说明：中断正常时不会触发超时；本简单版不做中断屏蔽，
+	 * 生产级需 per-queue 锁或改用 Abort/复位控制器。
+	 */
+	nvme_process_cq(q);
+
+	/*
+	 * 判断本请求是否已结束不能用 blk_mq_request_completed()：本驱动多队列
+	 * 下 blk_mq_complete_request 是同步完成（非 IPI 路径直接调 .complete ->
+	 * blk_mq_end_request -> blk_mq_free_request），完成后 state 被重置为
+	 * MQ_RQ_IDLE 而非 MQ_RQ_COMPLETE。故用「不在 IN_FLIGHT」判断：已
+	 * COMPLETE 或已 IDLE 都算完成。
+	 */
+	if (blk_mq_rq_state(rq) != MQ_RQ_IN_FLIGHT)
+		return BLK_EH_DONE;
+
+	dev_err(&dev->pdev->dev,
+		"命令仍卡住: qid=%u tag=%u 无 CQE，重置计时器继续等待（进阶：发 Abort 或复位）\n",
+		q->qid, rq->tag);
+	return BLK_EH_RESET_TIMER;
 }
 
 static blk_status_t nvme_map_and_submit(struct nvme_queue *q,
@@ -666,6 +720,7 @@ static const struct blk_mq_ops nvme_mq_ops = {
 	.queue_rq = nvme_queue_rq,
 	.complete = nvme_mq_complete,
 	.init_hctx = nvme_init_hctx,
+	.timeout  = nvme_timeout,
 };
 
 static const struct block_device_operations nvme_fops = {
@@ -690,6 +745,8 @@ static int nvme_setup_disk(struct pcie_nvme_dev *dev)
 	dev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 	dev->tag_set.cmd_size = sizeof(struct nvme_cmd);
 	dev->tag_set.driver_data = dev;
+	/* I/O 命令超时（jiffies），超时后 block 层调 nvme_timeout */
+	dev->tag_set.timeout = io_timeout * HZ;
 
 	ret = blk_mq_alloc_tag_set(&dev->tag_set);
 	if (ret) {
@@ -943,4 +1000,4 @@ module_pci_driver(pcie_nvme_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("cxr");
-MODULE_DESCRIPTION("阶段5: 多队列 NVMe 块设备驱动 (blk-mq + MSI-X)");
+MODULE_DESCRIPTION("阶段5b: 多队列 NVMe 块设备驱动 (blk-mq + MSI-X + I/O 超时)");

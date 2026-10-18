@@ -22,7 +22,7 @@
 | 中断 | MSI-X + GICv3 ITS |
 | 块设备栈 | blk-mq 多队列 + gendisk |
 
-五个阶段由浅入深，每阶段独立可验证，全程对标内核 `drivers/nvme/host/pci.c`。
+五个阶段（含 5b 健壮性增强）由浅入深，每阶段独立可验证，全程对标内核 `drivers/nvme/host/pci.c`。
 
 ---
 
@@ -96,6 +96,13 @@ qemu-system-aarch64 \
 - probe 循环 `for (i=0; i<nr_queues; i++) nvme_alloc_io_queue(dev, &queues[i], i+1)`；多 hctx 下 `command_id=rq->tag` 仍 per-hctx 唯一
 - **验证**：`-smp 2` 下 2 个 `nvme-io` 中断行（irq=23/24）；dd 4K/64K MATCH；两队列中断计数均增长（中断分发到多队列）
 
+### 阶段5b：I/O 命令超时处理（设备不响应时 request 不永久挂起）
+- `tag_set.timeout = io_timeout * HZ` + `nvme_mq_ops.timeout = nvme_timeout`，blk-mq 到点自动回调
+- `nvme_timeout` 先主动 `nvme_process_cq(q)` 收割 CQ（覆盖「中断丢失」场景），再判断 request 是否已结束
+- 未结束则打印卡住的 tag/opcode、返回 `BLK_EH_RESET_TIMER` 重置计时器继续等（进阶：发 Abort 命令或复位控制器）
+- 模块参数 `irq_loss=1` 模拟丢中断，验证超时回调能回收 request、dd 不 hang
+- **验证**：`insmod pcie_nvme.ko io_timeout=5 irq_loss=1` 后每条命令 5s 超时 → 回调 poll CQ 恢复，dd 写读 cmp MATCH，rmmod 干净
+
 ---
 
 ## 四、核心问题排查记录（面试重点）
@@ -112,6 +119,7 @@ qemu-system-aarch64 \
 | 6 | 编译报 `linux/genhd.h not found`、`GENHD_FL_EXT_DEVT undeclared` | Linux 6.5 把 gendisk 定义并入 `blkdev.h`，移除 `GENHD_FL_EXT_DEVT` | 删 include 与 flags 行 |
 | 7 | 阶段4 首次验证 **kernel panic**，Oops `pc=0x0`，`lr=blk_complete_reqs` | `blk_mq_complete_request` 异步完成走软中断 `blk_done_softirq → blk_complete_reqs → mq_ops->complete`，未实现该回调则跳 NULL 指针 | 实现 `.complete` 回调 `nvme_mq_complete`（unmap + `blk_mq_end_request`） |
 | 8 | `/proc/interrupts` 显示 `MSI` 而非 MSI-X，日志出现 GICv2m | QEMU virt 默认给 cortex-a53 配 **GICv2**，GICv2m 只支持 MSI；MSI-X 需 GICv3 ITS | `-M virt,gic-version=3`，之后 `ITS-MSI` + `msix_enabled=1` |
+| 9 | 超时回调里 `blk_mq_request_completed(rq)` 恒返回 false，误判「仍卡住」 | 本驱动多队列下 `blk_mq_complete_request` 走**同步完成**路径（非 IPI），`blk_mq_end_request → blk_mq_free_request` 把 state 重置为 `MQ_RQ_IDLE` 而非 `MQ_RQ_COMPLETE` | 改用 `blk_mq_rq_state(rq) != MQ_RQ_IN_FLIGHT` 判断「已不在途」（COMPLETE/IDLE 都算） |
 
 ### 关键设计决策
 
@@ -121,6 +129,7 @@ qemu-system-aarch64 \
 - **阶段5 每队列独立 MSI-X 向量（`IV=qid-1`）**：CQ 写满后触发绑定该队列的中断，中断处理 data 指向该队列，天然隔离；若所有 CQ 都绑 `IV=0`，则多队列共用一个中断，其余队列 CQ 无人收割 → IO 挂起。
 - **`pci_alloc_irq_vectors` 前移到 `nvme_setup_disk` 前**：先拿到实际可用向量数再建 tag_set，避免 `nr_hw_queues` 超过实际中断数导致 hctx 悬空。
 - **多 hctx 下 `command_id=rq->tag` 仍 per-hctx 唯一**：CQE 不带 hctx 信息，靠「哪个 CQ 收到 CQE」定位队列，`blk_mq_tag_to_rq(q->tags, tag)` 用该队列的 tags 反查。
+- **超时回调判断用 `blk_mq_rq_state(rq) != MQ_RQ_IN_FLIGHT` 而非 `blk_mq_request_completed()`**：见坑 9，同步完成路径下 state 被重置为 IDLE。
 
 ---
 
