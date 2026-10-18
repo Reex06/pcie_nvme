@@ -22,7 +22,7 @@
 | 中断 | MSI-X + GICv3 ITS |
 | 块设备栈 | blk-mq 多队列 + gendisk |
 
-五个阶段（含 5b 健壮性增强）由浅入深，每阶段独立可验证，全程对标内核 `drivers/nvme/host/pci.c`。
+六个阶段（含 5b/5c 健壮性、6 性能验证）由浅入深，每阶段独立可验证，全程对标内核 `drivers/nvme/host/pci.c`。
 
 ---
 
@@ -64,7 +64,7 @@ qemu-system-aarch64 \
 
 ---
 
-## 三、五阶段开发路线
+## 三、开发路线
 
 ### 阶段1：PCIe 枚举 + BAR0 映射 + 读寄存器
 - `pci_register_driver` 匹配 `1b36:0010`，probe 里读 BDF/class
@@ -108,6 +108,18 @@ qemu-system-aarch64 \
 - `nvme_error_status()` 用 `switch (status & 0x7ff)` 屏蔽 M/DNR/CRD 后按 SC 细分映射 `blk_status_t`：成功 / 容量不足 `NOSPC` / 可重试 `TARGET` / 不支持 `NOTSUPP` / 介质错误 `MEDIUM` / 保护错误 `PROTECTION` / 保留冲突 `RESV_CONFLICT` / 传输错误 `TRANSPORT` / ZNS 资源 `ZONE_*`，其余 `IOERR`
 - 对标内核 `drivers/nvme/host/core.c:nvme_error_status`，SC/SCT 值抄 `include/linux/nvme.h`
 - **验证**：成功路径回归——dd 64K 写读 cmp MATCH，dmesg 无「命令失败」误报，rmmod 干净
+
+### 阶段6：fio 多队列吞吐对比（用数据证明多队列价值）
+- 交叉编译静态 fio：`./configure --cc=aarch64-linux-gnu-gcc --build-static --disable-libnfs --disable-numa --disable-rdma --disable-http`（无 libaio 交叉库，用 `posixaio` 引擎）
+- **构建坑：不能 `make clean`**——它会删 `config-host.mak`，`make` 时规则 `config-host.mak: configure` 自动无参重跑 `./configure` 回退宿主机 gcc；须 configure 后 `find . -name '*.o' -delete` 再 make
+- `-smp 2` 下 `nr_queues=2`，测 `randread 4k`（IOPS）与 `read 128k`（带宽），`numjobs=1/2/4`：
+
+| 指标 | numjobs=1 | numjobs=2 | numjobs=4 |
+|---|---|---|---|
+| 随机读 4K IOPS | 267 | 398 | 555 |
+| 顺序读 128K 带宽 | 17.7 MiB/s | 44.4 MiB/s | 63.3 MiB/s |
+
+- **解读**：numjobs=1→2 接近翻倍（1 队列→2 队列，每队列独立 MSI-X 向量生效）；2→4 继续提升但放缓（4 线程抢 2 队列，`iodepth=16` 累积仍打满队列深度）。绝对值受 QEMU 软件模拟后端限制，看相对提升
 
 ---
 
