@@ -14,34 +14,21 @@
 | 2 | 控制器初始化 + Admin Queue + Identify | `CC=0x00460001`, `CSTS.RDY=1`, VID/MN/SN 正确 | ✅ |
 | 3 | I/O 队列 + blk-mq + Write/Read + PRP | `/dev/nvme0n1` 注册，dd 4K/64K 写读 MATCH | ✅ |
 | 4 | MSI-X 中断 + 异步完成 | 中断计数 2→10，dd MATCH，`msix_enabled=1` | ✅ |
-| 文档 | README.md 定稿（选题/环境/四阶段/8 个踩坑/技术链路） | — | ✅ |
+| 5 | 多队列扩展（每 CPU 一队列 + 独立 MSI-X 向量） | `-smp 2` 下 2 个 `nvme-io` 中断行（irq=23/24），dd MATCH，两队列中断均增长 | ✅ |
+| 文档 | README.md 定稿（选题/环境/五阶段/8 个踩坑 + 多队列考点/技术链路） | — | ✅ |
 
 **今日关键环境调整**
 - QEMU `-M virt,gic-version=3`：MSI-X 依赖 GICv3 ITS（GICv2 只有 MSI）。
 - 内核 `CONFIG_BLK_DEV_NVME=n`：让自写驱动独占 NVMe 设备。
 
 **代码现状**（`driver/pcie_nvme.c`）
-- 单 I/O 队列（`nr_queues=1`），一个 hctx，一个 MSI-X 向量。
+- 多 I/O 队列（`nr_queues=min(num_online_cpus(), MQES+1)`），多 hctx，多 MSI-X 向量（`IV=qid-1`）。
 - Admin 命令同步轮询完成；I/O 命令 MSI-X 中断异步完成。
 - 无 I/O 超时处理、无 NVMe status code 细分处理。
 
 ---
 
 ## 二、待执行方案
-
-### 阶段5：多队列扩展（每核一队列，对标真实 NVMe 性能模型）
-
-**目标**：`nr_queues` 从 1 扩到 `min(num_online_cpus(), MQES+1)`，每个队列独立 SQ/CQ + 独立 MSI-X 向量 + 独立 hctx，让 blk-mq 按 CPU 分发请求。
-
-**改动点**：
-1. `nvme_setup_disk`：`nr_queues = min_t(int, num_online_cpus(), NVME_CAP_MQES(cap)+1)`；`tag_set.nr_hw_queues = nr_queues`。
-2. `pci_alloc_irq_vectors(pdev, 1, nr_queues, PCI_IRQ_MSIX | PCI_IRQ_MSI)`（max_vecs 从 1 改 nr_queues）。
-3. probe 循环 `for (i=0; i<nr_queues; i++) nvme_alloc_io_queue(dev, &queues[i], i+1)`。
-   - qid = i+1，IV = qid-1 = i，`tags = tag_set.tags[i]`（`nvme_alloc_io_queue` 已按 `qid-1` 索引，无需改）。
-4. remove/错误路径循环 `free_irq` + `nvme_delete_io_queue` + `pci_free_irq_vectors`。
-5. `command_id = rq->tag` 在多 hctx 下仍 per-hctx 唯一，`blk_mq_tag_to_rq(q->tags, command_id)` 逻辑不变。
-
-**验证**：`-smp 4` 下看到多个 `nvme-io` 中断行；`fio --numjobs=4` 吞吐高于单队列。
 
 ### 阶段5b：I/O 命令超时处理
 
@@ -72,14 +59,14 @@
 
 ### 收尾：版本管理
 
-- `git init` + 首次提交（**不加任何 AI/Claude 签名行**，遵守全局规则）。
-- `.gitignore` 排除 `*.ko *.o *.mod *.mod.c Module.symvers modules.order` 等编译产物。
+- ✅ `git init` + 首次提交 + 阶段5 提交（**不加任何 AI/Claude 签名行**，遵守全局规则）。
+- ✅ `.gitignore` 排除 `*.ko *.o *.mod *.mod.c Module.symvers modules.order` 等编译产物。
+- ✅ 已推送 `github.com/Reex06/pcie_nvme.git`（main 分支，SSH 认证）。
 
 ---
 
 ## 三、优先级建议
 
-1. **阶段5 多队列**（含金量最高，补齐性能模型，面试最能讲）。
-2. **阶段5b 超时**（补健壮性，面试常问「命令不完成怎么办」）。
-3. 收尾 git 提交（随时可做）。
-4. 阶段5c / 阶段6 按时间取舍。
+1. **阶段5b 超时**（补健壮性，面试常问「命令不完成怎么办」）。
+2. **阶段5c status code 细分**（补完成路径正确性）。
+3. 阶段6（中断亲和/中断合并/SGL/fio 多队列吞吐对比）按时间取舍。
