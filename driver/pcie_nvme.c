@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * pcie_nvme.c - 阶段4：MSI-X 中断 + 异步完成（blk-mq 块设备驱动）
+ * pcie_nvme.c - 阶段5：多队列扩展（每 CPU 一个 I/O 队列 + 独立 MSI-X 向量）
  *
  * 阶段1：PCIe 枚举 + BAR0 映射 + MMIO 寄存器读取。
  * 阶段2：控制器初始化 + Admin Queue + Identify Controller 命令往返。
  * 阶段3：I/O 队列 + Write/Read + PRP，同步轮询打通数据通路。
- * 本阶段新增（完成路径从「同步轮询」升级为「MSI-X 中断异步」）：
- *   1. pci_alloc_irq_vectors 分配 MSI-X 向量，request_irq 绑定中断处理
- *   2. Create I/O CQ 时置 IEN=1 + IV，让控制器写完 CQE 后触发中断
- *   3. 中断处理函数收割 CQ，按 command_id(=rq->tag) 映射回 request
- *   4. blk_mq_complete_request 在中断上下文完成 request，唤醒等待的 bio
+ * 阶段4：MSI-X 中断 + 异步完成（blk_mq_complete_request + .complete 回调）。
+ * 本阶段新增（单队列 -> 每 CPU 一队列）：
+ *   1. nr_queues = min(num_online_cpus(), MQES+1)，每队列独立 SQ/CQ
+ *   2. 每队列绑定独立 MSI-X 向量（Create I/O CQ 的 IV=qid-1）
+ *   3. blk-mq nr_hw_queues=nr_queues，init_hctx 按 hctx_idx 分发到队列
+ *   4. command_id=rq->tag 在多 hctx 下仍 per-hctx 唯一
  *
  * 面试考点：
  *   - MSI-X 与 NVMe 的对应关系：每个 I/O CQ 一个中断向量（IV 字段绑定）
@@ -30,6 +31,7 @@
 #include <linux/scatterlist.h>
 #include <linux/dmapool.h>
 #include <linux/interrupt.h>
+#include <linux/cpumask.h>
 
 #define NVME_VENDOR_ID  0x1b36
 #define NVME_DEVICE_ID  0x0010
@@ -370,8 +372,8 @@ static int nvme_create_io_cq(struct pcie_nvme_dev *dev, struct nvme_queue *q)
 	sqe.prp1 = cpu_to_le64(q->cq_dma);
 	sqe.cdw10 = cpu_to_le32((q->qid & 0xffff) |
 				((q->q_depth - 1) << 16));
-	/* PC=1(物理连续), IEN=1(使能中断), IV=0(第0号 MSI-X 向量) */
-	sqe.cdw11 = cpu_to_le32(0x3 | (0 << 16));
+	/* PC=1(物理连续), IEN=1(使能中断), IV=qid-1(每个 CQ 绑定自己的 MSI-X 向量) */
+	sqe.cdw11 = cpu_to_le32(0x3 | ((q->qid - 1) << 16));
 
 	return nvme_admin_cmd(dev, &sqe, NULL);
 }
@@ -675,7 +677,6 @@ static int nvme_setup_disk(struct pcie_nvme_dev *dev)
 	struct gendisk *disk;
 	int ret;
 
-	dev->nr_queues = 1;
 	dev->queues = kcalloc(dev->nr_queues, sizeof(*dev->queues), GFP_KERNEL);
 	if (!dev->queues)
 		return -ENOMEM;
@@ -726,7 +727,7 @@ static int pcie_nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct pcie_nvme_dev *dev;
 	u64 cap;
 	u32 vs, csts;
-	int ret;
+	int ret, i;
 
 	dev_info(&pdev->dev, "probe: BDF=%04x:%02x:%02x.%d class=0x%06x\n",
 		 pci_domain_nr(pdev->bus), pdev->bus->number,
@@ -833,43 +834,55 @@ static int pcie_nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_disable_ctrl;
 	}
 
-	/* blk-mq + gendisk */
-	ret = nvme_setup_disk(dev);
-	if (ret)
-		goto out_destroy_pool;
+	/* 计算 I/O 队列数：每 CPU 一个，上限 MQES+1 */
+	dev->nr_queues = min_t(int, num_online_cpus(), NVME_CAP_MQES(cap) + 1);
 
-	/* 分配 MSI-X 中断向量（1 个 I/O 队列对应 1 个向量，优先 MSI-X 回退 MSI） */
+	/* 先分配 MSI-X 向量确定实际可用队列数（每队列一个向量，MSI-X 优先回退 MSI） */
 	ret = pci_alloc_irq_vectors(pdev, 1, dev->nr_queues,
 				    PCI_IRQ_MSIX | PCI_IRQ_MSI);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "pci_alloc_irq_vectors failed: %d\n", ret);
-		goto out_cleanup_disk;
+		goto out_destroy_pool;
 	}
-	dev_info(&pdev->dev, "已分配 %d 个 %s 中断向量\n", ret,
-		 pdev->msix_enabled ? "MSI-X" : "MSI");
+	dev->nr_queues = min_t(int, dev->nr_queues, ret);
+	dev_info(&pdev->dev, "已分配 %d 个 %s 中断向量, I/O 队列数=%d\n",
+		 ret, pdev->msix_enabled ? "MSI-X" : "MSI", dev->nr_queues);
 
-	/* 创建 I/O 队列 + 绑定中断（在 add_disk 前，避免提前有 IO） */
-	ret = nvme_alloc_io_queue(dev, &dev->queues[0], 1);
+	/* blk-mq + gendisk（用最终 nr_queues 建 tag_set） */
+	ret = nvme_setup_disk(dev);
 	if (ret)
 		goto out_free_irq_vectors;
+
+	/* 循环创建 I/O 队列 + 绑定中断（在 add_disk 前，避免提前有 IO） */
+	for (i = 0; i < dev->nr_queues; i++) {
+		ret = nvme_alloc_io_queue(dev, &dev->queues[i], i + 1);
+		if (ret)
+			goto out_free_irq;
+	}
 
 	ret = add_disk(dev->disk);
 	if (ret)
 		goto out_free_irq;
 
-	dev_info(&pdev->dev, "块设备 /dev/nvme%dn%d 注册成功, 容量=%llu LBA\n",
-		 0, dev->nsid, dev->nsze);
+	dev_info(&pdev->dev, "块设备 /dev/nvme%dn%d 注册成功, 容量=%llu LBA, I/O 队列=%d\n",
+		 0, dev->nsid, dev->nsze, dev->nr_queues);
 	return 0;
 
 out_free_irq:
-	free_irq(dev->queues[0].irq, &dev->queues[0]);
-	nvme_delete_io_queue(dev, &dev->queues[0]);
+	/* 清理已成功创建的 I/O 队列（第 i 个失败，前 i 个已建） */
+	while (i > 0) {
+		i--;
+		free_irq(dev->queues[i].irq, &dev->queues[i]);
+		nvme_delete_io_queue(dev, &dev->queues[i]);
+	}
 out_free_irq_vectors:
 	pci_free_irq_vectors(pdev);
-out_cleanup_disk:
-	put_disk(dev->disk);
-	blk_mq_free_tag_set(&dev->tag_set);
-	kfree(dev->queues);
+	/* nvme_setup_disk 失败时内部已释放 tag_set/queues，dev->disk 为 NULL 跳过 */
+	if (dev->disk) {
+		put_disk(dev->disk);
+		blk_mq_free_tag_set(&dev->tag_set);
+		kfree(dev->queues);
+	}
 out_destroy_pool:
 	dma_pool_destroy(dev->prp_pool);
 out_disable_ctrl:
@@ -930,4 +943,4 @@ module_pci_driver(pcie_nvme_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("cxr");
-MODULE_DESCRIPTION("阶段4: MSI-X 中断异步完成 (blk-mq 块设备驱动)");
+MODULE_DESCRIPTION("阶段5: 多队列 NVMe 块设备驱动 (blk-mq + MSI-X)");

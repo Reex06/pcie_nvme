@@ -22,7 +22,7 @@
 | 中断 | MSI-X + GICv3 ITS |
 | 块设备栈 | blk-mq 多队列 + gendisk |
 
-四个阶段由浅入深，每阶段独立可验证，全程对标内核 `drivers/nvme/host/pci.c`。
+五个阶段由浅入深，每阶段独立可验证，全程对标内核 `drivers/nvme/host/pci.c`。
 
 ---
 
@@ -64,7 +64,7 @@ qemu-system-aarch64 \
 
 ---
 
-## 三、四阶段开发路线
+## 三、五阶段开发路线
 
 ### 阶段1：PCIe 枚举 + BAR0 映射 + 读寄存器
 - `pci_register_driver` 匹配 `1b36:0010`，probe 里读 BDF/class
@@ -90,6 +90,12 @@ qemu-system-aarch64 \
 - 中断上半部收割 CQ → `command_id(=rq->tag)` 经 `blk_mq_tag_to_rq` 反查 request → `blk_mq_complete_request` 触发软中断 → `.complete` 回调 unmap + `blk_mq_end_request`
 - **验证**：`/proc/interrupts` 中断计数 dd 后 2→10（证明走中断非轮询）；dd 4K/64K MATCH；`pdev->msix_enabled=1`
 
+### 阶段5：多队列扩展（每 CPU 一队列，对标真实 NVMe 性能模型）
+- `nr_queues = min(num_online_cpus(), MQES+1)`，每队列独立 SQ/CQ + 独立 MSI-X 向量（`IV=qid-1`）+ 独立 hctx
+- `pci_alloc_irq_vectors` 前移到 `nvme_setup_disk` 之前：先确定实际向量数，再按最终 `nr_queues` 建 tag_set
+- probe 循环 `for (i=0; i<nr_queues; i++) nvme_alloc_io_queue(dev, &queues[i], i+1)`；多 hctx 下 `command_id=rq->tag` 仍 per-hctx 唯一
+- **验证**：`-smp 2` 下 2 个 `nvme-io` 中断行（irq=23/24）；dd 4K/64K MATCH；两队列中断计数均增长（中断分发到多队列）
+
 ---
 
 ## 四、核心问题排查记录（面试重点）
@@ -112,6 +118,9 @@ qemu-system-aarch64 \
 - **阶段3 同步轮询、阶段4 再切中断**：把「数据正确性（PRP/blk-mq）」与「中断」两个正交问题分开调试，出错定位快。
 - **unmap 放 `.complete` 回调（软中断）而非中断上半部**：上半部只记 status + `blk_mq_complete_request`，对标内核 nvme pci.c，缩短硬中断占用。
 - **command_id 直接复用 `rq->tag`**：单 hctx 下 tag 唯一，完成时 `blk_mq_tag_to_rq` 反查，无需额外映射表。
+- **阶段5 每队列独立 MSI-X 向量（`IV=qid-1`）**：CQ 写满后触发绑定该队列的中断，中断处理 data 指向该队列，天然隔离；若所有 CQ 都绑 `IV=0`，则多队列共用一个中断，其余队列 CQ 无人收割 → IO 挂起。
+- **`pci_alloc_irq_vectors` 前移到 `nvme_setup_disk` 前**：先拿到实际可用向量数再建 tag_set，避免 `nr_hw_queues` 超过实际中断数导致 hctx 悬空。
+- **多 hctx 下 `command_id=rq->tag` 仍 per-hctx 唯一**：CQE 不带 hctx 信息，靠「哪个 CQ 收到 CQE」定位队列，`blk_mq_tag_to_rq(q->tags, tag)` 用该队列的 tags 反查。
 
 ---
 
