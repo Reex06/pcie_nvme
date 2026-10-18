@@ -27,6 +27,27 @@
 
 **定位先想清楚**：QEMU 对你（驱动/BSP 岗）是「开发调试环境」，不是学习目标。要学的是「会用 + 能讲清原理和差异」，**不要学** KVM/虚拟化加速原理、QEMU 设备模型开发（那是虚拟化岗的事）。
 
+**启动前先扫盲：整机启动原理（第 1 天先读，消除"一头雾水"）**
+
+1. **你的环境没有用 U-Boot**。真实板子（i.MX6ULL）启动链：ROM → U-Boot（初始化 DDR、读 SD 卡内核、传设备树）→ 内核 → 根文件系统。本项目 `-kernel Image` 让 QEMU 把内核**直接加载进内存并跳转**，U-Boot 整段被跳过——U-Boot 的职责全被 QEMU 用软件代劳。面试要能讲清这个区别。
+2. **模拟的板子：QEMU "virt"，一张不存在的板子**。`-M virt` 不对应任何真实板卡，是 QEMU 官方设计的万能虚拟 ARM64 平台。`-cpu cortex-a53`（CPU）、`-m 512M`（内存=进程里一块大数组）、`-smp 2`（2 核）、`gic-version=3`（GICv3 中断控制器，MSI-X 前提）、机器内置 gpex PCIe 主机桥 + PL011 串口（ttyAMA0）、`-nographic`（串口当终端）。关键差异：真实板子的设备树是 `.dtb` 文件，virt 的设备树是 QEMU 启动时**现场生成**的，按 ARM64 启动协议放进 x0 寄存器传给内核。
+3. **内核启动时序**：QEMU 把 Image 加载进 guest 内存 → 把 initrd 也加载进内存、地址写进设备树 → `-append` 变成内核 cmdline 写进设备树 → QEMU 内置 mini 固件设置 CPU 状态（EL2、MMU 关、x0=设备树地址）→ 跳内核入口 → 内核初始化、解析设备树 → 解压 initramfs 挂根文件系统 → 执行 `rdinit=/init`。
+4. **根文件系统 = initramfs 内存压缩包**：`qemu/rootfs/` 目录（busybox + `init -> bin/busybox` 符号链接）打包 `find . | cpio -o -H newc | gzip > rootfs_arm64.cpio.gz`。两个后果：rootfs 在内存里，guest 改动重启即丢（所以改驱动要重新打包 cpio）；唯一持久的是宿主机文件 nvme.img。
+5. **虚拟 NVMe 设备 = 前端/后端分离的纯软件模拟**，三层结构：
+
+```
+【宿主机文件】 nvme.img                     ← 数据真正落在这里（相当于空白硬盘）
+      ▲ pread/pwrite
+【QEMU 内】块后端 drive=nvme0               ← -drive file=nvme.img,if=none,id=nvme0
+【QEMU 内】NVMe 控制器模拟（软件状态机）     ← -device nvme,drive=nvme0，源码 ../qemu/hw/nvme/ctrl.c
+      ▲ MMIO 写被 CPU 模拟器拦截
+【guest 内核】 pcie_nvme.ko                 ← 你写的驱动，看到的和真设备一模一样
+```
+
+   驱动运行时每一步都发生在 QEMU 进程里：写 doorbell → CPU 模拟器拦截 MMIO → `nvme_mmio_write` → `nvme_process_sq` 读 SQE 执行 → 读写变成对 nvme.img 的 pread/pwrite → 写 CQE + 翻相位位 → `msix_notify` 注入 MSI-X → guest CPU 跳进你的中断处理函数；"DMA" 实际是 QEMU 进程内的 memcpy。**接口层面（寄存器/DMA/中断）与真硬件等价，所以 QEMU 里写的驱动能平移上真机。**
+
+**一句话总结**：QEMU 是宿主机上的一个用户态进程，用软件模拟 CPU/内存/中断控制器/PCIe 总线/NVMe 控制器；你的内核和驱动运行在这个进程里，数据最终落到宿主机文件 nvme.img。
+
 **第一层：必须会（第 1 天，跑通即达标）**
 1. 看懂 `start_qemu_virt.sh` 每一行：`-M virt,gic-version=3`（机器模型=虚拟 ARM 主板定义，含 GIC/PCIe host 拓扑）、`-cpu cortex-a53`、`-smp 2`（2 核）、`-m 512M`（内存）、`-kernel`（内核镜像 Image）、`-initrd`（根文件系统）、`-append "console=ttyAMA0 rdinit=/init"`（串口 + 首个用户态进程）、`-device nvme,serial=deadbeef,drive=nvme0`（**设备前端**）、`-drive file=...,if=none,id=nvme0`（**存储后端**）、`-nographic`（无图形，串口当终端）。
 2. 理解三个概念：**内核镜像**（Image）、**根文件系统**（rootfs，busybox 做 /init）、**机器模型**（virt：QEMU 用软件定义的一台"虚拟主板"，NVMe/PCIe host 都是它虚拟出来的）。
@@ -283,6 +304,7 @@ CQE `status >> 1` 得到 `SCT<<8|SC`（bit10:8=SCT 错误类型，bit7:0=SC 具�
 - [ ] 9 个踩坑每个的「现象→根因→解决」三段式
 - [ ] 分阶段验证方法论（数据正确性/中断正交调试）
 - [ ] QEMU vs 真实 NVMe 的 5 个维度差异
+- [ ] QEMU 整机启动原理（无 U-Boot 的 -kernel 启动链、initramfs、前端/后端分离）
 - [ ] fio 数据怎么证明多队列价值（numjobs 1→2 翻倍）
 
 ---
@@ -302,7 +324,7 @@ CQE `status >> 1` 得到 `SCT<<8|SC`（bit10:8=SCT 错误类型，bit7:0=SC 具�
 
 | 阶段 | 内容 | 预估 |
 |---|---|---|
-| 0 | 环境跑通 | 半天 |
+| 0 | 环境跑通 + QEMU 原理 | 1~3 天 |
 | 1 | 块设备/blk-mq（正点原子） | 1~2 周 |
 | 2 | PCIe（韦东山） | 1~2 周 |
 | 3 | DMA/一致性 | 2~3 天 |
