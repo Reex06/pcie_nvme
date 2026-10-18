@@ -21,6 +21,7 @@
 | 命令队列 / doorbell | Admin/I/O SQ/CQ + tail/head doorbell |
 | 中断 | MSI-X + GICv3 ITS |
 | 块设备栈 | blk-mq 多队列 + gendisk |
+| 健壮性 / 性能 | I/O 超时 + status code 细分 + fio 多队列验证 |
 
 六个阶段（含 5b/5c 健壮性、6 性能验证）由浅入深，每阶段独立可验证，全程对标内核 `drivers/nvme/host/pci.c`。
 
@@ -200,4 +201,8 @@ sync
 dd if=/dev/nvme0n1 of=/tmp/dst bs=4096 count=16 skip=16
 cmp /tmp/src /tmp/dst && echo MATCH
 grep nvme-io /proc/interrupts    # 观察中断计数增长
+
+# 5. fio 吞吐对比（numjobs=1/2/4，见阶段6）
+fio --name=t --filename=/dev/nvme0n1 --ioengine=posixaio --rw=randread --bs=4k \
+    --iodepth=16 --numjobs=2 --size=128M --runtime=6 --time_based --direct=1
 ```

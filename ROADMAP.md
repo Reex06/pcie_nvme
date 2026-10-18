@@ -5,7 +5,7 @@
 
 ---
 
-## 一、今日已完成（2026-10-17）
+## 一、已完成（2026-10-17 ~ 2026-10-18）
 
 | 阶段 | 内容 | 验证结果 | 状态 |
 |---|---|---|---|
@@ -18,7 +18,7 @@
 | 5b | I/O 命令超时处理（丢中断时 poll CQ 恢复） | `irq_loss=1` 模拟丢中断，超时回调 poll CQ 恢复，dd MATCH，rmmod 干净 | ✅ |
 | 5c | NVMe Status Code 细分（对标内核 nvme_error_status） | 成功路径 dd 64K MATCH，dmesg 无误报，rmmod 干净 | ✅ |
 | 6 | fio 多队列吞吐对比 | randread 4K IOPS 267→398→555，read 128K 17.7→44.4→63.3 MiB/s（numjobs 1/2/4） | ✅ |
-| 文档 | README.md 定稿（选题/环境/五阶段/8 个踩坑 + 多队列考点/技术链路） | — | ✅ |
+| 文档 | README.md 定稿（选题/环境/六阶段/9 个踩坑 + 多队列/超时/错误码考点 + 技术链路 + fio 验证） | — | ✅ |
 
 **今日关键环境调整**
 - QEMU `-M virt,gic-version=3`：MSI-X 依赖 GICv3 ITS（GICv2 只有 MSI）。
