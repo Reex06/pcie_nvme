@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * pcie_nvme.c - 阶段5b：I/O 命令超时处理（基于阶段5多队列）
+ * pcie_nvme.c - 阶段5c：NVMe Status Code 细分处理（基于阶段5b 多队列+超时）
  *
  * 阶段1：PCIe 枚举 + BAR0 映射 + MMIO 寄存器读取。
  * 阶段2：控制器初始化 + Admin Queue + Identify Controller 命令往返。
  * 阶段3：I/O 队列 + Write/Read + PRP，同步轮询打通数据通路。
  * 阶段4：MSI-X 中断 + 异步完成（blk_mq_complete_request + .complete 回调）。
  * 阶段5：多队列扩展（每 CPU 一个 I/O 队列 + 独立 MSI-X 向量 IV=qid-1）。
- * 本阶段新增（I/O 命令超时）：
- *   1. blk_mq_rq_timeout 设命令超时，nvme_mq_ops.timeout 回调处理
- *   2. 超时回调主动 poll CQ，区分「中断丢失（CQE 已就绪）」与「设备卡死」
- *   3. irq_loss 模块参数做故障注入，验证中断丢失时的超时恢复
+ * 阶段5b：I/O 命令超时（tag_set.timeout + .timeout 回调 poll CQ 恢复）。
+ * 本阶段新增（Status Code 细分）：
+ *   1. CQE status 的 SC 字段按 NVMe 规范细分映射为 blk_status_t
+ *   2. 区分成功/介质错误/保护错误/容量不足/不支持/可重试等，非一律 IOERR
  *
  * 面试考点：
  *   - MSI-X 与 NVMe 的对应关系：每个 I/O CQ 一个中断向量（IV 字段绑定）
@@ -18,6 +18,7 @@
  *   - 中断上半部收割 CQ + 敲 CQ head doorbell，下半部由 block 层 softirq 完成
  *   - PRP 是 NVMe 传数据的核心：单页走 PRP1，多页 PRP1+PRP2 指向 PRP list 页
  *   - 超时≠必然丢数据：先 poll CQ 区分中断丢失（可恢复）与设备真卡死
+ *   - CQE status 的 SCT 区分错误类型，SC 细分到具体错误，映射 blk_status_t
  */
 
 #include <linux/module.h>
@@ -86,6 +87,37 @@
 #define NVME_MAX_SEGS       128  /* 单请求最多 scatter-gather 段数 */
 
 #define NVME_IO_TIMEOUT_DEFAULT 30 /* I/O 命令默认超时（秒） */
+
+/* NVMe Status Code（status >> 1 后的完整编码 SCT<<8|SC，不含 M/DNR/CRD） */
+#define NVME_SC_SUCCESS               0x0
+#define NVME_SC_INVALID_OPCODE        0x1
+#define NVME_SC_INVALID_FIELD         0x2
+#define NVME_SC_INVALID_NS            0xb
+#define NVME_SC_CMD_INTERRUPTED       0x21
+#define NVME_SC_LBA_RANGE             0x80
+#define NVME_SC_CAP_EXCEEDED          0x81
+#define NVME_SC_NS_NOT_READY          0x82
+#define NVME_SC_RESERVATION_CONFLICT  0x83
+#define NVME_SC_BAD_ATTRIBUTES        0x180
+#define NVME_SC_INVALID_PI            0x181
+#define NVME_SC_READ_ONLY             0x182
+#define NVME_SC_ONCS_NOT_SUPPORTED    0x183
+#define NVME_SC_WRITE_FAULT           0x280
+#define NVME_SC_READ_ERROR            0x281
+#define NVME_SC_GUARD_CHECK           0x282
+#define NVME_SC_APPTAG_CHECK          0x283
+#define NVME_SC_REFTAG_CHECK          0x284
+#define NVME_SC_COMPARE_FAILED        0x285
+#define NVME_SC_ACCESS_DENIED         0x286
+#define NVME_SC_UNWRITTEN_BLOCK       0x287
+#define NVME_SC_HOST_PATH_ERROR       0x370
+#define NVME_SC_ZONE_TOO_MANY_ACTIVE  0x1bd
+#define NVME_SC_ZONE_TOO_MANY_OPEN    0x1be
+
+/* CQE status 字段标志（相对 status >> 1 后的值） */
+#define NVME_SC_MORE 0x2000  /* M：更多状态 */
+#define NVME_SC_DNR  0x4000  /* DNR：不要重试 */
+#define NVME_SC_CRD  0x1800  /* CRD：命令重试延迟 */
 
 /* NVMe 提交队列项 SQE，固定 64 字节 */
 struct nvme_sqe {
@@ -545,6 +577,52 @@ static void nvme_submit_sqe(struct nvme_queue *q, struct nvme_sqe *sqe)
 	writel(q->sq_tail, nvme_sq_doorbell(q->dev, q->qid));
 }
 
+/* 把 NVMe CQE status（SC+SCT 编码）映射为 blk-mq 通用返回码。
+ * status 为 le16_to_cpu(cqe->status) >> 1（已去掉 P bit），
+ * bit10:8 = SCT(Status Code Type)，bit7:0 = SC(Status Code)。
+ * 对标内核 drivers/nvme/host/core.c 的 nvme_error_status。 */
+static blk_status_t nvme_error_status(u16 status)
+{
+	switch (status & 0x7ff) {  /* 屏蔽 M/DNR/CRD，保留 SCT+SC */
+	case NVME_SC_SUCCESS:
+		return BLK_STS_OK;
+	case NVME_SC_CAP_EXCEEDED:
+		return BLK_STS_NOSPC;
+	case NVME_SC_LBA_RANGE:
+	case NVME_SC_CMD_INTERRUPTED:
+	case NVME_SC_NS_NOT_READY:
+		return BLK_STS_TARGET;
+	case NVME_SC_BAD_ATTRIBUTES:
+	case NVME_SC_ONCS_NOT_SUPPORTED:
+	case NVME_SC_INVALID_OPCODE:
+	case NVME_SC_INVALID_FIELD:
+	case NVME_SC_INVALID_NS:
+		return BLK_STS_NOTSUPP;
+	case NVME_SC_WRITE_FAULT:
+	case NVME_SC_READ_ERROR:
+	case NVME_SC_UNWRITTEN_BLOCK:
+	case NVME_SC_ACCESS_DENIED:
+	case NVME_SC_READ_ONLY:
+	case NVME_SC_COMPARE_FAILED:
+		return BLK_STS_MEDIUM;
+	case NVME_SC_GUARD_CHECK:
+	case NVME_SC_APPTAG_CHECK:
+	case NVME_SC_REFTAG_CHECK:
+	case NVME_SC_INVALID_PI:
+		return BLK_STS_PROTECTION;
+	case NVME_SC_RESERVATION_CONFLICT:
+		return BLK_STS_RESV_CONFLICT;
+	case NVME_SC_HOST_PATH_ERROR:
+		return BLK_STS_TRANSPORT;
+	case NVME_SC_ZONE_TOO_MANY_ACTIVE:
+		return BLK_STS_ZONE_ACTIVE_RESOURCE;
+	case NVME_SC_ZONE_TOO_MANY_OPEN:
+		return BLK_STS_ZONE_OPEN_RESOURCE;
+	default:
+		return BLK_STS_IOERR;
+	}
+}
+
 /* 中断上半部：按 command_id 映射回 request，记录状态并触发异步完成 */
 static void nvme_complete_rq(struct nvme_queue *q, struct nvme_cqe *cqe)
 {
@@ -565,9 +643,14 @@ static void nvme_complete_rq(struct nvme_queue *q, struct nvme_cqe *cqe)
 	cmd = blk_mq_rq_to_pdu(rq);
 	cmd->status = status;
 
-	if (status)
-		dev_err(&dev->pdev->dev, "I/O 命令失败: qid=%u status=0x%x\n",
-			q->qid, status);
+	if (status) {
+		blk_status_t bst = nvme_error_status(status);
+
+		dev_err(&dev->pdev->dev,
+			"I/O 命令失败: qid=%u tag=%u sct=%u sc=0x%02x dnr=%u -> blk_sts=%d\n",
+			q->qid, command_id, (status >> 8) & 0x7,
+			status & 0xff, !!(status & NVME_SC_DNR), (int)bst);
+	}
 
 	/* 触发异步完成：block 层软中断 -> nvme_mq_complete -> unmap + end_request */
 	blk_mq_complete_request(rq);
@@ -578,7 +661,7 @@ static void nvme_mq_complete(struct request *rq)
 {
 	struct pcie_nvme_dev *dev = rq->q->queuedata;
 	struct nvme_cmd *cmd = blk_mq_rq_to_pdu(rq);
-	blk_status_t ret = cmd->status ? BLK_STS_IOERR : BLK_STS_OK;
+	blk_status_t ret = nvme_error_status(cmd->status);
 
 	nvme_unmap_data(dev, cmd, rq);
 	blk_mq_end_request(rq, ret);
@@ -1000,4 +1083,4 @@ module_pci_driver(pcie_nvme_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("cxr");
-MODULE_DESCRIPTION("阶段5b: 多队列 NVMe 块设备驱动 (blk-mq + MSI-X + I/O 超时)");
+MODULE_DESCRIPTION("阶段5c: 多队列 NVMe 块设备驱动 (blk-mq + MSI-X + 超时 + status code 细分)");

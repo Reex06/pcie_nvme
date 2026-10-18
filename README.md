@@ -103,6 +103,12 @@ qemu-system-aarch64 \
 - 模块参数 `irq_loss=1` 模拟丢中断，验证超时回调能回收 request、dd 不 hang
 - **验证**：`insmod pcie_nvme.ko io_timeout=5 irq_loss=1` 后每条命令 5s 超时 → 回调 poll CQ 恢复，dd 写读 cmp MATCH，rmmod 干净
 
+### 阶段5c：NVMe Status Code 细分处理（完成路径正确性）
+- CQE status 字段解析：`P[0]` + `SC[8:1]` + `SCT[11:9]` + `M[14]` + `DNR[15]`；`status >> 1` 得 `SCT<<8|SC`
+- `nvme_error_status()` 用 `switch (status & 0x7ff)` 屏蔽 M/DNR/CRD 后按 SC 细分映射 `blk_status_t`：成功 / 容量不足 `NOSPC` / 可重试 `TARGET` / 不支持 `NOTSUPP` / 介质错误 `MEDIUM` / 保护错误 `PROTECTION` / 保留冲突 `RESV_CONFLICT` / 传输错误 `TRANSPORT` / ZNS 资源 `ZONE_*`，其余 `IOERR`
+- 对标内核 `drivers/nvme/host/core.c:nvme_error_status`，SC/SCT 值抄 `include/linux/nvme.h`
+- **验证**：成功路径回归——dd 64K 写读 cmp MATCH，dmesg 无「命令失败」误报，rmmod 干净
+
 ---
 
 ## 四、核心问题排查记录（面试重点）
@@ -130,6 +136,7 @@ qemu-system-aarch64 \
 - **`pci_alloc_irq_vectors` 前移到 `nvme_setup_disk` 前**：先拿到实际可用向量数再建 tag_set，避免 `nr_hw_queues` 超过实际中断数导致 hctx 悬空。
 - **多 hctx 下 `command_id=rq->tag` 仍 per-hctx 唯一**：CQE 不带 hctx 信息，靠「哪个 CQ 收到 CQE」定位队列，`blk_mq_tag_to_rq(q->tags, tag)` 用该队列的 tags 反查。
 - **超时回调判断用 `blk_mq_rq_state(rq) != MQ_RQ_IN_FLIGHT` 而非 `blk_mq_request_completed()`**：见坑 9，同步完成路径下 state 被重置为 IDLE。
+- **status code 映射对标内核 `nvme_error_status`**：`switch (status & 0x7ff)` 先屏蔽 M/DNR/CRD 标志位，再按 `SCT<<8|SC` 细分；同一 SC 值在不同 SCT（错误类型）下含义不同，必须用完整编码而非裸 SC。
 
 ---
 
