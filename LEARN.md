@@ -62,13 +62,24 @@
    - `irq_loss` 属性：QEMU NVMe 设备参数，置 1 时模拟"丢中断"（只写 CQE 不发中断）——本项目阶段 5b 的验证手段就靠它
    看完你会恍然大悟：**驱动敲的每一个 doorbell 都进了 QEMU 的模拟函数，你发出的每个 MSI-X 都是 QEMU 的软件注入**。这是理解"虚拟设备 vs 真实设备"最直观的方式。
 
+**设备树（DTS）实操：把"看不见的设备树"显形（半天，面试高频）**
+
+先纠正一个常见误解：**你的环境本来就有设备树**——QEMU 每次启动现场生成 DTB 传给内核，只是你从没见过它。所以"加 DTS"的正确姿势不是给 NVMe 写节点（PCIe 设备靠配置空间枚举，不靠 DT，写了反而暴露认知错误），而是把这套工作流掌握：
+
+1. **导出**：`qemu-system-aarch64 -M virt,gic-version=3 -machine dumpdtb=virt.dtb`（不启动虚拟机，只导出）
+2. **反编译**：`dtc -I dtb -O dts virt.dtb > virt.dts`
+3. **精读**：项目里现成的注释版 [virt_machine.dts](virt_machine.dts)，重点是 `pcie@10000000` 节点——`ranges` 三段式（IO/MEM32/MEM64，类型码 0x1000000/0x2000000/0x3000000）、ECAM 配置窗口、`msi-parent`→ITS 链路（**串起坑 8：为什么必须 gic-version=3**）、`dma-coherent`、`interrupt-map`
+4. **改着玩验证**：改 `chosen`/注释 `kaslr-seed` → `dtc -I dts -O dtb` 编回 → 启动脚本加 `-dtb` 参数启动 → 观察行为变化。证明你掌握"改 dts → 编 dtb → 加载"完整闭环（**真机上烧板子就是这同一套流程**）
+
+**面试必答两道题**：① PCIe 设备为什么不在设备树里？（可自描述枚举 vs 不可枚举平台设备）② 真机调 NVMe 的 DT 工作写什么？（PCIe **主机桥**节点的 clocks/resets/vcc3v3-supply/reset-gpios——给 SSD 供电复位，本项目 QEMU 替你把板级做完了）。
+
 **第三层：面试必能讲（不是学，是能答）**
 7. QEMU 与真机差异 5 个维度（背 `INTERVIEW.md` Q2 表格）：时序非实时、中断是软件注入、DMA 是 memcpy 模拟、无 IOMMU/SMMU、错误注入可控（真机无法随意丢中断，QEMU 一个参数搞定）。
 8. fio 数据的正确解读：QEMU 上的数字证明「多队列架构带来收益」，不代表真实性能上限；面试官若质疑就说"模拟环境瓶颈在 CPU 软件模拟，真机上收益只会更明显"。
 9. 为什么驱动学习选 QEMU：零硬件成本、可 GDB 单步、可注入故障（丢中断）——后两点真机上几乎做不到，这是本项目验证手段完整性的关键。
 
-**验收**：能逐行解释 `start_qemu_virt.sh`；能用 monitor 查到 QEMU NVMe 的 PCI 信息；能讲清"我驱动里敲 doorbell 后，QEMU 内部发生了什么"。
-**对应项目**：`README.md` 二、六节；QEMU 源码 `../qemu/hw/nvme/ctrl.c`。
+**验收**：能逐行解释 `start_qemu_virt.sh`；能用 monitor 查到 QEMU NVMe 的 PCI 信息；能讲清"我驱动里敲 doorbell 后，QEMU 内部发生了什么"；能讲清 `virt_machine.dts` 里 pcie 节点的 `ranges`/`msi-parent` 字段含义。
+**对应项目**：`README.md` 二、六节；注释版设备树 `virt_machine.dts`；QEMU 源码 `../qemu/hw/nvme/ctrl.c`。
 
 ### 阶段 1：块设备子系统（正点原子视频，1~2 周）
 **这是整个项目最核心的地基**。NVMe 驱动本质上就是「一个注册到 blk-mq 框架的块设备驱动」。
@@ -305,6 +316,7 @@ CQE `status >> 1` 得到 `SCT<<8|SC`（bit10:8=SCT 错误类型，bit7:0=SC 具�
 - [ ] 分阶段验证方法论（数据正确性/中断正交调试）
 - [ ] QEMU vs 真实 NVMe 的 5 个维度差异
 - [ ] QEMU 整机启动原理（无 U-Boot 的 -kernel 启动链、initramfs、前端/后端分离）
+- [ ] 设备树：ranges 三段式、msi-parent/ITS、PCIe 设备为什么不在 DT 里
 - [ ] fio 数据怎么证明多队列价值（numjobs 1→2 翻倍）
 
 ---
