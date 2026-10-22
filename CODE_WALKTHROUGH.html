@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CODE_WALKTHROUGH.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> or <div class="page"></div> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h1 id="源码精讲从零读懂-pcie_nvmec1086-行">源码精讲：从零读懂 pcie_nvme.c（1086 行）</h1>
+<blockquote>
+<p>使用方式：VSCode 打开 <code>driver/pcie_nvme.c</code> 对照阅读，每讲标了行号。
+<code>Ctrl+点击</code> 任何内核函数可跳转到 linux-6.5 内核源码（clangd 已配置）。
+每讲结束有「口述自测」，答不上来就是没懂，回头重读。</p>
+</blockquote>
+<hr>
+<h2 id="第-0-讲整体骨架先建立全局印象">第 0 讲：整体骨架（先建立全局印象）</h2>
+<p><strong>这个驱动在干一件什么事？</strong> 用你熟悉的字符设备驱动做锚点：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>字符设备（点灯/按键）</th>
+<th>这个 NVMe 驱动</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>设备在哪</td>
+<td>CPU 直接读写寄存器</td>
+<td>设备是<strong>外置的</strong>，挂在 PCIe 总线上</td>
+</tr>
+<tr>
+<td>数据怎么传</td>
+<td>读写寄存器</td>
+<td><strong>DMA</strong>（设备自己读内存）</td>
+</tr>
+<tr>
+<td>通知机制</td>
+<td>无/轮询</td>
+<td><strong>doorbell 写寄存器</strong> + <strong>MSI-X 中断</strong></td>
+</tr>
+<tr>
+<td>内核框架</td>
+<td>file_operations</td>
+<td><strong>blk-mq</strong>（块设备框架）</td>
+</tr>
+</tbody>
+</table>
+<p>一句话：<strong>NVMe 驱动 = 让内核块设备框架能往一块&quot;挂在 PCIe 上的 SSD&quot;读写数据，靠&quot;命令队列 + DMA + 中断&quot;协作。</strong></p>
+<p><strong>文件从上到下的组织</strong>（1086 行分 11 块）：</p>
+<pre class="hljs"><code><div> 38-121 行   宏定义：寄存器偏移、位域、opcode、状态码
+123-217 行   数据结构：SQE / CQE / nvme_cmd / nvme_queue / pcie_nvme_dev
+219-245 行   驱动注册表 + 可调参数 + doorbell 地址计算
+247-296 行   控制器使能/关闭
+298-338 行   Admin 命令提交与等待
+340-407 行   Identify 读设备信息
+409-501 行   创建 I/O 队列（SQ+CQ+中断）
+503-578 行   PRP 构造（数据通路核心）
+580-737 行   错误码 + 中断完成 + 超时
+739-863 行   blk-mq 数据通路 + 框架接入
+865-1082 行  probe / remove 生命周期
+</div></code></pre>
+<p><strong>读代码的顺序就是数据流的顺序</strong>：先有数据结构（&quot;有什么&quot;），再有寄存器（&quot;怎么通知&quot;），再有命令往返（&quot;怎么对话&quot;），再有数据通路（&quot;怎么搬数据&quot;），最后是生命周期（&quot;怎么组装&quot;）。</p>
+<hr>
+<h2 id="第-1-讲寄存器与常量38121-行">第 1 讲：寄存器与常量（38~121 行）</h2>
+<h3 id="11-pcie-设备身份38-39-行">1.1 PCIe 设备身份（38-39 行）</h3>
+<pre class="hljs"><code><div><span class="hljs-meta">#<span class="hljs-keyword">define</span> NVME_VENDOR_ID  0x1b36</span>
+<span class="hljs-meta">#<span class="hljs-keyword">define</span> NVME_DEVICE_ID  0x0010</span>
+</div></code></pre>
+<p>vendor ID <code>0x1b36</code> 是 <strong>Red Hat（QEMU 作者之一）的 ID</strong>——QEMU 模拟的 NVMe 设备就报这个 ID。PCIe 驱动靠这对 ID 匹配设备（后面 219-223 行的 id_table）。真机上插的 NVMe SSD 报的是真实厂商 ID（三星 0x144d、Intel 0x8086 等），所以这个驱动<strong>专为 QEMU 设备写，换真盘要加 ID</strong>——这是面试常问的&quot;QEMU 与真机差异&quot;第 1 点。</p>
+<h3 id="12-寄存器偏移41-49-行-nvme-控制器就是一段内存">1.2 寄存器偏移（41-49 行）—— NVMe 控制器就是一段内存</h3>
+<p>NVMe 规范规定控制器的寄存器全部在 <strong>BAR0</strong> 里，各寄存器有固定偏移：</p>
+<table>
+<thead>
+<tr>
+<th>偏移</th>
+<th>名字</th>
+<th>含义</th>
+<th>读写</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x00</td>
+<td>CAP</td>
+<td>能力（队列深度上限、超时粒度等）</td>
+<td>只读</td>
+</tr>
+<tr>
+<td>0x08</td>
+<td>VS</td>
+<td>规范版本</td>
+<td>只读</td>
+</tr>
+<tr>
+<td>0x14</td>
+<td>CC</td>
+<td>控制（<strong>EN 位 = 电源开关</strong>）</td>
+<td>读写</td>
+</tr>
+<tr>
+<td>0x1c</td>
+<td>CSTS</td>
+<td>状态（<strong>RDY 位 = 就绪灯</strong>）</td>
+<td>只读</td>
+</tr>
+<tr>
+<td>0x24</td>
+<td>AQA</td>
+<td>Admin 队列深度</td>
+<td>写</td>
+</tr>
+<tr>
+<td>0x28</td>
+<td>ASQ</td>
+<td>Admin SQ 的<strong>总线地址</strong></td>
+<td>写</td>
+</tr>
+<tr>
+<td>0x30</td>
+<td>ACQ</td>
+<td>Admin CQ 的<strong>总线地址</strong></td>
+<td>写</td>
+</tr>
+<tr>
+<td>0x1000</td>
+<td>DBS</td>
+<td>Doorbell 寄存器基地址</td>
+<td>写</td>
+</tr>
+</tbody>
+</table>
+<p>类比：CAP/VS 是设备的&quot;说明书&quot;，CC 是&quot;开关&quot;，CSTS 是&quot;状态灯&quot;，AQA/ASQ/ACQ 是&quot;告诉设备你的邮箱在哪&quot;。</p>
+<h3 id="13-位域宏51-71-行-从-64-位寄存器里抠字段">1.3 位域宏（51-71 行）—— 从 64 位寄存器里抠字段</h3>
+<p>以 CAP 为例（QEMU 实际值 <code>0x103403fff</code>）：</p>
+<pre class="hljs"><code><div><span class="hljs-meta">#<span class="hljs-keyword">define</span> NVME_CAP_MQES(cap)  ((int)((cap) &amp; 0xffff))          <span class="hljs-comment">// bit0-15：最大队列深度-1</span></span>
+<span class="hljs-meta">#<span class="hljs-keyword">define</span> NVME_CAP_DSTRD(cap) (1u <span class="hljs-string">&lt;&lt; (2 + (((cap) &gt;</span>&gt; 32) &amp; 0xf)))  <span class="hljs-comment">// bit32-35：doorbell 间隔</span></span>
+<span class="hljs-meta">#<span class="hljs-keyword">define</span> NVME_CAP_TO(cap)    ((((cap) &gt;&gt; 24) &amp; 0xff))         <span class="hljs-comment">// bit24-31：超时粒度</span></span>
+</div></code></pre>
+<ul>
+<li><strong>MQES</strong>：<code>0x3ff</code> = 1023，即最大 1024 队列深度。本项目 978 行用它算 I/O 队列数上限。</li>
+<li><strong>DSTRD</strong>：doorbell stride，两个相邻 doorbell 寄存器之间隔几个字节。公式 <code>1&lt;&lt;(2+n)</code>，n=0 时 4 字节。本项目读出 4。</li>
+<li><strong>TO</strong>：控制器超时粒度（500ms 单位），使能控制器时用它算轮询超时（270 行）。</li>
+</ul>
+<p>CC 的字段（56-63 行）是面试重点，<strong>写一次 CC 同时配 6 样东西</strong>：</p>
+<pre class="hljs"><code><div><span class="hljs-meta">#<span class="hljs-keyword">define</span> NVME_CC_ENABLE     BIT(0)     <span class="hljs-comment">// 1=开机</span></span>
+<span class="hljs-meta">#<span class="hljs-keyword">define</span> NVME_CC_CSS_NVM    (0 &lt;&lt; 4)   <span class="hljs-comment">// 命令集：NVM（就是普通 SSD）</span></span>
+<span class="hljs-meta">#<span class="hljs-keyword">define</span> NVME_CC_MPS_4K     (0 &lt;&lt; 7)   <span class="hljs-comment">// 内存页大小：4KB（必须与主机页大小一致）</span></span>
+<span class="hljs-meta">#<span class="hljs-keyword">define</span> NVME_CC_AMS_RR     (0 &lt;&lt; 11)  <span class="hljs-comment">// 仲裁机制：Round-Robin</span></span>
+<span class="hljs-meta">#<span class="hljs-keyword">define</span> NVME_CC_IOSQES     (6 &lt;&lt; 16)  <span class="hljs-comment">// I/O SQ 条目大小 = 2^6 = 64B</span></span>
+<span class="hljs-meta">#<span class="hljs-keyword">define</span> NVME_CC_IOCQES     (4 &lt;&lt; 20)  <span class="hljs-comment">// I/O CQ 条目大小 = 2^4 = 16B</span></span>
+</div></code></pre>
+<p><strong>考点</strong>：为什么 IOSQES 填 6？因为 SQE 固定 64 字节，CC 里存的是&quot;以 2 为底的对数&quot;，<code>2^6=64</code>。写成 <code>6 &lt;&lt; 16</code> 而不是 <code>64 &lt;&lt; 16</code>——这是 NVMe 规范的设计（省位）。</p>
+<h3 id="14-命令-opcode73-83-行">1.4 命令 opcode（73-83 行）</h3>
+<pre class="hljs"><code><div><span class="hljs-comment">/* Admin 命令（管理用，跑在 qid=0 的队列上） */</span>
+NVME_ADMIN_DELETE_SQ <span class="hljs-number">0x00</span> / CREATE_SQ <span class="hljs-number">0x01</span> / DELETE_CQ <span class="hljs-number">0x04</span> / CREATE_CQ <span class="hljs-number">0x05</span> / IDENTIFY <span class="hljs-number">0x06</span>
+<span class="hljs-comment">/* I/O 命令（读写用，跑在 qid&gt;=1 的队列上） */</span>
+NVME_CMD_FLUSH <span class="hljs-number">0x00</span> / WRITE <span class="hljs-number">0x01</span> / READ <span class="hljs-number">0x02</span>
+</div></code></pre>
+<p><strong>考点</strong>：同一 opcode 值（如 0x00）在 Admin 队列是&quot;删除 SQ&quot;，在 I/O 队列是&quot;Flush&quot;——opcode 含义随队列类型变化。</p>
+<h3 id="15-状态码常量91-120-行-阶段-5c-新增">1.5 状态码常量（91-120 行）—— 阶段 5c 新增</h3>
+<pre class="hljs"><code><div><span class="hljs-meta">#<span class="hljs-keyword">define</span> NVME_SC_SUCCESS         0x0    <span class="hljs-comment">// 成功</span></span>
+<span class="hljs-meta">#<span class="hljs-keyword">define</span> NVME_SC_LBA_RANGE       0x80   <span class="hljs-comment">// 访问越界（SCT=2 介质类）</span></span>
+<span class="hljs-meta">#<span class="hljs-keyword">define</span> NVME_SC_CAP_EXCEEDED    0x81   <span class="hljs-comment">// 容量不足（→ BLK_STS_NOSPC）</span></span>
+<span class="hljs-meta">#<span class="hljs-keyword">define</span> NVME_SC_WRITE_FAULT     0x280  <span class="hljs-comment">// 写介质错误（→ BLK_STS_MEDIUM）</span></span>
+</div></code></pre>
+<p>注意这些值已经是 <code>status &gt;&gt; 1</code> 之后的<strong>完整编码 <code>SCT&lt;&lt;8|SC</code></strong>（不是裸 SC）。为什么 <code>LBA_RANGE</code> 是 0x80 而不是 0x00？因为它的 SCT=2（介质类错误）占了高 3 位。裸 SC 相同的值在不同 SCT 下含义完全不同——第 11 讲详解。</p>
+<p><strong>口述自测</strong>：CC 寄存器一次写入配了哪 6 样东西？DSTRD 是干什么用的？</p>
+<hr>
+<h2 id="第-2-讲数据结构123217-行-五个核心结构体">第 2 讲：数据结构（123~217 行）—— 五个核心结构体</h2>
+<p>NVMe 的灵魂是 <strong>SQ/CQ 队列对</strong>：主机往 SQ 放&quot;命令纸条&quot;，敲 doorbell 通知设备；设备完成后往 CQ 放&quot;结果纸条&quot;，发中断通知主机。这张纸条就是 SQE，结果就是 CQE。</p>
+<h3 id="21-struct-nvme_sqe123-138-行-提交队列项固定-64-字节">2.1 <code>struct nvme_sqe</code>（123-138 行）—— 提交队列项，固定 64 字节</h3>
+<pre class="hljs"><code><div><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">nvme_sqe</span> {</span>
+	u8  opcode;       <span class="hljs-comment">// 干什么：READ=0x02 / WRITE=0x01</span>
+	u8  flags;        <span class="hljs-comment">// 标志（本项目没用，填 0）</span>
+	u16 command_id;   <span class="hljs-comment">// 命令编号，完成后靠它对上号</span>
+	u32 nsid;         <span class="hljs-comment">// 命名空间 ID（一个盘可分多个逻辑盘）</span>
+	u64 rsvd2;
+	u64 metadata;     <span class="hljs-comment">// 元数据（本项目不用）</span>
+	u64 prp1;         <span class="hljs-comment">// ★ 数据缓冲区物理地址 1</span>
+	u64 prp2;         <span class="hljs-comment">// ★ 数据缓冲区物理地址 2</span>
+	u32 cdw10..cdw15; <span class="hljs-comment">// 命令参数（读写时：起始 LBA、长度）</span>
+};
+</div></code></pre>
+<p><strong>重点盯 <code>prp1/prp2</code></strong>：设备靠这两个字段自己去内存找数据。所以填的是<strong>总线地址</strong>（DMA 地址），不是 <code>kmalloc</code> 出来的虚拟地址——这是 DMA 设备与字符设备最本质的区别。字符设备是 CPU 用虚拟地址读写寄存器，NVMe 是<strong>设备</strong>用总线地址读写内存。</p>
+<h3 id="22-struct-nvme_cqe141-148-行-完成队列项固定-16-字节">2.2 <code>struct nvme_cqe</code>（141-148 行）—— 完成队列项，固定 16 字节</h3>
+<pre class="hljs"><code><div><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">nvme_cqe</span> {</span>
+	u32 result;       <span class="hljs-comment">// 命令结果（Identify 时是数据）</span>
+	u32 rsvd1;
+	u16 sq_head;      <span class="hljs-comment">// 设备回报：SQ 已消费到哪</span>
+	u16 sq_id;        <span class="hljs-comment">// 哪个队列的完成</span>
+	u16 command_id;   <span class="hljs-comment">// 对应哪条命令</span>
+	u16 status;       <span class="hljs-comment">// ★ bit0 = P(相位位)，bit15:1 = 状态码</span>
+};
+</div></code></pre>
+<p><strong>P 位（相位位）是本项目理解门槛之一</strong>：CQ 是环形缓冲区，内存反复用。怎么判断某条 CQE 是&quot;新写入的结果&quot;还是&quot;上轮残留的旧结果&quot;？设备每写一圈就把 P 位翻转一次；主机记住&quot;当前该收到 P=几&quot;，读到不匹配的就说明&quot;还没写完/是旧的&quot;。<strong>不需要清内存，转一圈翻一次</strong>——这是高性能设计（避免每轮 memset 4KB 队列）。</p>
+<h3 id="23-struct-nvme_cmd159-166-行-每个请求的草稿纸">2.3 <code>struct nvme_cmd</code>（159-166 行）—— 每个请求的&quot;草稿纸&quot;</h3>
+<pre class="hljs"><code><div><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">nvme_cmd</span> {</span>
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">scatterlist</span> <span class="hljs-title">sg</span>[<span class="hljs-title">NVME_MAX_SEGS</span>];</span> <span class="hljs-comment">// 数据分段表（bio 拆出来的）</span>
+	<span class="hljs-type">int</span> nsegs;                            <span class="hljs-comment">// 段数</span>
+	<span class="hljs-type">void</span> *prp_list;                       <span class="hljs-comment">// PRP list 页虚拟地址</span>
+	<span class="hljs-type">dma_addr_t</span> prp_list_dma;              <span class="hljs-comment">// PRP list 页总线地址</span>
+	u16 status;                           <span class="hljs-comment">// CQE 状态（中断记下，complete 回调读）</span>
+};
+</div></code></pre>
+<p>内核每下发一个 IO 请求，blk-mq 会在 request 后面<strong>按 <code>cmd_size</code> 额外分配一块内存</strong>给它当私有草稿纸（pdu）。数据在途期间，sg 表、PRP list 页都挂在上面；中断里记录的 status 也放这，供下半部使用。<strong>考点</strong>：<code>blk_mq_rq_to_pdu(rq)</code> 就是拿到这块草稿纸。</p>
+<h3 id="24-struct-nvme_queue168-181-行-一对-sqcq">2.4 <code>struct nvme_queue</code>（168-181 行）—— 一对 SQ+CQ</h3>
+<pre class="hljs"><code><div><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">nvme_queue</span> {</span>
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">pcie_nvme_dev</span> *<span class="hljs-title">dev</span>;</span>   <span class="hljs-comment">// 反向指回总管家</span>
+	u16 qid;                     <span class="hljs-comment">// 0=Admin，1..N=I/O</span>
+	u16 q_depth;                 <span class="hljs-comment">// 深度（I/O 队列 64）</span>
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">nvme_sqe</span> *<span class="hljs-title">sq</span>;</span>         <span class="hljs-comment">// SQ 内存（虚拟地址）</span>
+	<span class="hljs-type">dma_addr_t</span> sq_dma;           <span class="hljs-comment">// SQ 内存（总线地址，给设备用）</span>
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">nvme_cqe</span> *<span class="hljs-title">cq</span>;</span>         <span class="hljs-comment">// CQ 内存</span>
+	<span class="hljs-type">dma_addr_t</span> cq_dma;
+	u16 sq_tail;                 <span class="hljs-comment">// 游标1：下一条命令写到 SQ 的哪个位置</span>
+	u16 cq_head;                 <span class="hljs-comment">// 游标2：下一条结果从 CQ 的哪个位置读</span>
+	u8  cq_phase;                <span class="hljs-comment">// 游标3：当前期望收到 P=0 还是 P=1</span>
+	<span class="hljs-type">int</span> irq;                     <span class="hljs-comment">// 绑定的 MSI-X 中断号</span>
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">blk_mq_tags</span> *<span class="hljs-title">tags</span>;</span>    <span class="hljs-comment">// command_id → request 映射表</span>
+};
+</div></code></pre>
+<p><strong>三个游标是队列的全部状态</strong>：<code>sq_tail</code>（写命令）、<code>cq_head</code>（读结果）、<code>cq_phase</code>（判新旧）。后面所有代码都在维护这三个数。</p>
+<h3 id="25-struct-pcie_nvme_dev183-217-行-整个设备的总管家">2.5 <code>struct pcie_nvme_dev</code>（183-217 行）—— 整个设备的&quot;总管家&quot;</h3>
+<p>probe 成功后，这个结构体就是全局上下文，什么都能从它找到：<code>pdev</code>（PCI 设备）、<code>bar0</code>（MMIO 映射）、Admin 队列三件套（SQ/CQ/游标）、Identify 缓冲区、namespace 信息（<code>nsze</code> 总扇区数 + <code>lba_shift</code>）、I/O 队列数组、<code>tag_set</code>（blk-mq 配置）、<code>disk</code>（块设备）、<code>prp_pool</code>（PRP 页池）。</p>
+<p><strong>结构体关系图</strong>：</p>
+<pre class="hljs"><code><div>pcie_nvme_dev（总管家）
+ ├─ pdev ──────── PCI 设备（配置空间、中断向量）
+ ├─ bar0 ──────── MMIO 映射 → 寄存器 + doorbell
+ ├─ admin_sq/admin_cq ── Admin 队列对（qid=0）
+ ├─ identify ──── 4096B DMA 缓冲（Identify 命令的数据落点）
+ ├─ queues[] ──── nvme_queue × N（每 CPU 一对 SQ/CQ）
+ │     ├─ sq/cq ── 队列内存
+ │     └─ tags ─── blk-mq 的 tag 映射表
+ ├─ tag_set ───── blk-mq 配置（几个队列、多深、pdu 多大）
+ ├─ disk ──────── gendisk（/dev/nvme0n1 就是它）
+ └─ prp_pool ──── PRP list 页池
+</div></code></pre>
+<p><strong>口述自测</strong>：P 位为什么能判断 CQE 新旧而不需要清内存？<code>nvme_cmd</code> 这块&quot;草稿纸&quot;是谁分配的？</p>
+<hr>
+<h2 id="第-3-讲doorbell-与控制器使能237296-行">第 3 讲：doorbell 与控制器使能（237~296 行）</h2>
+<h3 id="31-doorbell-门铃237-245-行">3.1 doorbell 门铃（237-245 行）</h3>
+<p>主机和设备之间<strong>唯一的&quot;通知&quot;手段就是写 doorbell 寄存器</strong>：</p>
+<pre class="hljs"><code><div><span class="hljs-type">static</span> <span class="hljs-type">void</span> __iomem *<span class="hljs-title function_">nvme_sq_doorbell</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> pcie_nvme_dev *dev, u16 qid)</span>
+{
+	<span class="hljs-keyword">return</span> dev-&gt;bar0 + NVME_REG_DBS + (<span class="hljs-number">2</span> * qid) * dev-&gt;dstrd;
+}
+<span class="hljs-type">static</span> <span class="hljs-type">void</span> __iomem *<span class="hljs-title function_">nvme_cq_doorbell</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> pcie_nvme_dev *dev, u16 qid)</span>
+{
+	<span class="hljs-keyword">return</span> dev-&gt;bar0 + NVME_REG_DBS + (<span class="hljs-number">2</span> * qid + <span class="hljs-number">1</span>) * dev-&gt;dstrd;
+}
+</div></code></pre>
+<p>每个队列有 <strong>2 个门铃</strong>：SQ tail（主机说&quot;我放了新命令&quot;）和 CQ head（主机说&quot;我读完了，这位置可以复用&quot;）。内存布局：</p>
+<pre class="hljs"><code><div>DBS + 0    qid=0 的 SQ tail doorbell
+DBS + 4    qid=0 的 CQ head doorbell
+DBS + 8    qid=1 的 SQ tail doorbell
+DBS + 12   qid=1 的 CQ head doorbell
+...
+</div></code></pre>
+<p>间距 <code>dstrd</code> 从 CAP 读出（QEMU 为 4 字节）。</p>
+<p><strong>为什么叫 doorbell？</strong> 类比餐厅：主机（顾客）写 SQ 就像把点单放进传送带，敲门铃（写 SQ tail）通知后厨（设备）&quot;有单了&quot;；后厨做好放 CQ，主机吃完敲 CQ head 门铃&quot;盘子收走了&quot;。<strong>没有中断也照样能工作</strong>——后厨出餐快，顾客一直盯着（轮询）也行，这就是阶段 3 的轮询模式；阶段 4 才加上中断（服务员叫号）。</p>
+<h3 id="32-nvme_enable_ctrl247-286-行-控制器的开机五步">3.2 <code>nvme_enable_ctrl</code>（247-286 行）—— 控制器的&quot;开机五步&quot;</h3>
+<pre class="hljs"><code><div><span class="hljs-type">static</span> <span class="hljs-type">int</span> <span class="hljs-title function_">nvme_enable_ctrl</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> pcie_nvme_dev *dev)</span>
+{
+	u64 cap = readq(dev-&gt;bar0 + NVME_REG_CAP);
+	...
+	<span class="hljs-comment">/* 第1步：检查 CSTS.RDY，防止重复初始化 */</span>
+	csts = readl(dev-&gt;bar0 + NVME_REG_CSTS);
+	<span class="hljs-keyword">if</span> (csts &amp; NVME_CSTS_RDY) { ... <span class="hljs-keyword">return</span> -EBUSY; }
+
+	<span class="hljs-comment">/* 第2步：写 AQA = Admin 队列深度（32-1 写进低 16 位和高 16 位） */</span>
+	writel(((NVME_ADMIN_Q_DEPTH - <span class="hljs-number">1</span>) &lt;&lt; NVME_AQA_ASQS_SHIFT) |
+	       ((NVME_ADMIN_Q_DEPTH - <span class="hljs-number">1</span>) &lt;&lt; NVME_AQA_ACQS_SHIFT),
+	       dev-&gt;bar0 + NVME_REG_AQA);
+	<span class="hljs-comment">/* 第3步：写 ASQ/ACQ = Admin SQ/CQ 的总线地址 */</span>
+	writeq(dev-&gt;admin_sq_dma, dev-&gt;bar0 + NVME_REG_ASQ);
+	writeq(dev-&gt;admin_cq_dma, dev-&gt;bar0 + NVME_REG_ACQ);
+
+	<span class="hljs-comment">/* 第4步：写 CC.EN=1 —— 这是&quot;开机键&quot;，同时配好 MPS/CSS/IOSQES/IOCQES */</span>
+	cc = NVME_CC_ENABLE | ...;
+	writel(cc, dev-&gt;bar0 + NVME_REG_CC);
+
+	<span class="hljs-comment">/* 第5步：轮询 CSTS.RDY 直到置 1（带超时），再检查致命错误位 CFS */</span>
+	timeout = jiffies + msecs_to_jiffies((NVME_CAP_TO(cap) + <span class="hljs-number">1</span>) * <span class="hljs-number">500</span>);
+	<span class="hljs-keyword">while</span> (!((csts = readl(dev-&gt;bar0 + NVME_REG_CSTS)) &amp; NVME_CSTS_RDY)) {
+		<span class="hljs-keyword">if</span> (time_after(jiffies, timeout)) { ... <span class="hljs-keyword">return</span> -ETIMEDOUT; }
+		cpu_relax();
+	}
+	<span class="hljs-keyword">if</span> (csts &amp; NVME_CSTS_CFS) { ... <span class="hljs-keyword">return</span> -EIO; }
+	...
+}
+</div></code></pre>
+<p><strong>考点</strong>：</p>
+<ol>
+<li>ASQ/ACQ 写的是 <code>admin_sq_dma</code>（<strong>总线地址</strong>），不是 <code>admin_sq</code>（虚拟地址）——设备只认识总线地址。</li>
+<li>AQA 存的是&quot;深度-1&quot;（31），规范规定。</li>
+<li>超时时间用 CAP.TO 算：<code>(TO+1)×500ms</code>，不拍脑袋。</li>
+<li><code>cpu_relax()</code> 是轮询礼貌（ARM 上是 hint 指令，降功耗），别写成空转 <code>;</code>。</li>
+<li>顺序不能乱：<strong>先配 AQA/ASQ/ACQ，最后才 EN=1</strong>。EN 一置位设备就开工，邮箱没配好就开工 = 完蛋。</li>
+</ol>
+<h3 id="33-nvme_disable_ctrl288-296-行-关机">3.3 <code>nvme_disable_ctrl</code>（288-296 行）—— 关机</h3>
+<pre class="hljs"><code><div>writel(<span class="hljs-number">0</span>, dev-&gt;bar0 + NVME_REG_CC);          <span class="hljs-comment">// EN=0</span>
+<span class="hljs-keyword">while</span> ((csts = readl(dev-&gt;bar0 + NVME_REG_CSTS)) &amp; NVME_CSTS_RDY)
+	cpu_relax();                              <span class="hljs-comment">// 等 RDY 熄灭</span>
+</div></code></pre>
+<p><strong>口述自测</strong>：一条队列有几个 doorbell？各敲在什么时机？为什么使能控制器的顺序是先 AQA/ASQ/ACQ 后 CC.EN？</p>
+<hr>
+<h2 id="第-4-讲admin-命令往返298338-行-第一次对话">第 4 讲：Admin 命令往返（298~338 行）—— 第一次&quot;对话&quot;</h2>
+<h3 id="41-nvme_admin_wait_cq299-327-行-轮询等结果">4.1 <code>nvme_admin_wait_cq</code>（299-327 行）—— 轮询等结果</h3>
+<pre class="hljs"><code><div><span class="hljs-type">static</span> <span class="hljs-type">int</span> <span class="hljs-title function_">nvme_admin_wait_cq</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> pcie_nvme_dev *dev, u32 *result)</span>
+{
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">nvme_cqe</span> *<span class="hljs-title">cqe</span> =</span> &amp;dev-&gt;admin_cq[dev-&gt;cq_head];   <span class="hljs-comment">// 当前该读的位置</span>
+	<span class="hljs-type">unsigned</span> <span class="hljs-type">long</span> timeout = jiffies + msecs_to_jiffies(<span class="hljs-number">5000</span>);
+	u16 status;
+
+	<span class="hljs-comment">/* 轮询：CQE 的 P 位 == 期望的 phase，说明设备已写入新结果 */</span>
+	<span class="hljs-keyword">while</span> ((le16_to_cpu(cqe-&gt;status) &amp; <span class="hljs-number">0x1</span>) != dev-&gt;cq_phase) {
+		<span class="hljs-keyword">if</span> (time_after(jiffies, timeout)) { ... <span class="hljs-keyword">return</span> -ETIMEDOUT; }
+		cpu_relax();
+	}
+
+	<span class="hljs-comment">/* status &gt;&gt; 1 去掉 P 位得到状态码，非 0 即失败 */</span>
+	status = le16_to_cpu(cqe-&gt;status) &gt;&gt; <span class="hljs-number">1</span>;
+	<span class="hljs-keyword">if</span> (status) { ... <span class="hljs-keyword">return</span> -EIO; }
+
+	<span class="hljs-keyword">if</span> (result)
+		*result = le32_to_cpu(cqe-&gt;result);    <span class="hljs-comment">// 取出结果（如 Identify 的数据长度）</span>
+
+	<span class="hljs-comment">/* 消费掉这条 CQE：head+1，转一圈翻转 phase，敲 CQ head doorbell */</span>
+	dev-&gt;cq_head = (dev-&gt;cq_head + <span class="hljs-number">1</span>) % NVME_ADMIN_Q_DEPTH;
+	<span class="hljs-keyword">if</span> (dev-&gt;cq_head == <span class="hljs-number">0</span>)
+		dev-&gt;cq_phase = !dev-&gt;cq_phase;
+	writel(dev-&gt;cq_head, nvme_cq_doorbell(dev, <span class="hljs-number">0</span>));
+
+	<span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+}
+</div></code></pre>
+<p><strong>注意 <code>le16_to_cpu</code></strong>：SQE/CQE 是设备读写的，NVMe 规范规定<strong>小端</strong>；ARM64 跑 Linux 默认小端，此时代价为 0，但写对大小端是协议驱动的职业素养（大端平台如部分 MIPS 上不转换就是灾难）。</p>
+<h3 id="42-nvme_admin_cmd330-338-行-提交--等待">4.2 <code>nvme_admin_cmd</code>（330-338 行）—— 提交 + 等待</h3>
+<pre class="hljs"><code><div><span class="hljs-type">static</span> <span class="hljs-type">int</span> <span class="hljs-title function_">nvme_admin_cmd</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> pcie_nvme_dev *dev, <span class="hljs-type">const</span> <span class="hljs-keyword">struct</span> nvme_sqe *sqe,
+			  u32 *result)</span>
+{
+	<span class="hljs-built_in">memcpy</span>(&amp;dev-&gt;admin_sq[dev-&gt;sq_tail], sqe, <span class="hljs-keyword">sizeof</span>(*sqe));  <span class="hljs-comment">// 1. 命令放进 SQ</span>
+	dev-&gt;sq_tail = (dev-&gt;sq_tail + <span class="hljs-number">1</span>) % NVME_ADMIN_Q_DEPTH;   <span class="hljs-comment">// 2. tail 前进</span>
+	writel(dev-&gt;sq_tail, nvme_sq_doorbell(dev, <span class="hljs-number">0</span>));           <span class="hljs-comment">// 3. ★ 敲 SQ tail 门铃</span>
+
+	<span class="hljs-keyword">return</span> nvme_admin_wait_cq(dev, result);                   <span class="hljs-comment">// 4. 等结果</span>
+}
+</div></code></pre>
+<p><strong>完整时序图</strong>（一条 Admin 命令的一生，共 4 次门铃/2 类门铃）：</p>
+<pre class="hljs"><code><div>主机                         设备
+  │ memcpy(SQ[tail]=命令)       │
+  │ writel(SQ tail doorbell) ──▶│ 看到门铃，取走命令，执行
+  │                             │ 执行完：写 CQ[head]=结果(P=phase)
+  │ ◀───────────────────────────│ （阶段4起：发 MSI-X 中断）
+  │ 轮询/中断发现 P 匹配         │
+  │ 读结果，head+1               │
+  │ writel(CQ head doorbell) ──▶│ 知道该位置可复用
+</div></code></pre>
+<p><strong>阶段 3 是纯轮询（poll）</strong>：Admin 命令都在初始化时发、次数少，轮询简单可靠，不值得开中断。阶段 4 之后 I/O 队列才用中断。<strong>考点</strong>：为什么 Admin 队列不配中断？——初始化阶段同步轮询更简单；且 Admin 命令少、延迟不敏感。</p>
+<p><strong>口述自测</strong>：<code>writel(dev-&gt;sq_tail, ...)</code> 这一行的作用是什么？不敲会怎样？（答：设备不知道有新命令，命令躺在 SQ 里永远不会被执行。）</p>
+<hr>
+<h2 id="第-5-讲identify-读设备信息340407-行">第 5 讲：Identify 读设备信息（340~407 行）</h2>
+<p>Identify 是 Admin 队列跑的第一个命令，相当于<strong>盘问设备</strong>：&quot;你是谁？多大？&quot;</p>
+<h3 id="51-identify-controller354-379-行-问你是谁">5.1 Identify Controller（354-379 行）—— 问&quot;你是谁&quot;</h3>
+<pre class="hljs"><code><div>sqe.opcode = NVME_ADMIN_IDENTIFY;
+sqe.command_id = <span class="hljs-number">1</span>;
+sqe.nsid = <span class="hljs-number">0</span>;
+sqe.prp1 = cpu_to_le64(dev-&gt;identify_dma);   <span class="hljs-comment">// 结果写到这个 DMA 缓冲</span>
+sqe.cdw10 = cpu_to_le32(<span class="hljs-number">0x1</span>);                <span class="hljs-comment">// CNS=1：要 Controller 信息</span>
+</div></code></pre>
+<p>设备把 4096 字节的 Identify 数据 DMA 进 <code>dev-&gt;identify</code> 缓冲。<code>nvme_dump_identify_ctrl</code>（367）从中抠字段：VID（厂商）、MN（型号）、SN（序列号）、FR（固件版本）、NN（命名空间数量）。</p>
+<p><strong>坑 3 就在这</strong>（371 行注释）：NN 字段在 offset <strong>516</strong>，不是 512。因为结构体前面有 4 字节对齐填充。这个坑的教训：<strong>协议字段偏移要对着规范结构体核对，不能凭&quot;感觉下一个是 512&quot;猜</strong>。</p>
+<h3 id="52-identify-namespace382-407-行-问你多大">5.2 Identify Namespace（382-407 行）—— 问&quot;你多大&quot;</h3>
+<pre class="hljs"><code><div>sqe.nsid = cpu_to_le32(dev-&gt;nsid);  <span class="hljs-comment">// 问 1 号命名空间</span>
+sqe.cdw10 = cpu_to_le32(<span class="hljs-number">0x0</span>);       <span class="hljs-comment">// CNS=0：要 Namespace 信息</span>
+</div></code></pre>
+<p><code>nvme_parse_ns</code>（395）抠出两个关键数：</p>
+<pre class="hljs"><code><div>u64 nsze = le64_to_cpu(*(__le64 *)(dev-&gt;identify + <span class="hljs-number">0</span>));   <span class="hljs-comment">// LBA 总数</span>
+u8 flbas  = *(u8 *)(dev-&gt;identify + <span class="hljs-number">26</span>);                  <span class="hljs-comment">// 当前 LBA 格式索引</span>
+u8 lbaf_idx = flbas &amp; <span class="hljs-number">0xf</span>;
+u32 lbaf = le32_to_cpu(*(__le32 *)(dev-&gt;identify + <span class="hljs-number">128</span> + lbaf_idx * <span class="hljs-number">4</span>));
+u8 lbads = (lbaf &gt;&gt; <span class="hljs-number">16</span>) &amp; <span class="hljs-number">0xff</span>;                           <span class="hljs-comment">// LBA 大小 = 2^lbads</span>
+
+dev-&gt;nsze = nsze;        <span class="hljs-comment">// 比如 QEMU 默认 1G 盘 = 2097152 个 512B LBA</span>
+dev-&gt;lba_shift = lbads;  <span class="hljs-comment">// 9（512B）或 12（4KB）</span>
+</div></code></pre>
+<p><strong>这两个数决定 /dev/nvme0n1 的容量</strong>（851 行 <code>set_capacity(disk, nsze &lt;&lt; (lba_shift-9))</code> 用的就是它）。</p>
+<p><strong>考点</strong>：LBA 和 512B 扇区的关系。块设备层统一以 512B 扇区为单位（<code>blk_rq_pos</code> 返回扇区号），NVMe 的 LBA 可能更大（4KB 盘）。所以全驱动凡涉及地址/长度都要 <code>&gt;&gt; (lba_shift - 9)</code> 换算——754 行、767 行都是。</p>
+<p><strong>口述自测</strong>：Identify 的数据是怎么到主机内存的？<code>lba_shift=12</code> 时，块层给的扇区号 4096 对应 NVMe 的 LBA 几？</p>
+<hr>
+<h2 id="第-6-讲创建-io-队列409501-行">第 6 讲：创建 I/O 队列（409~501 行）</h2>
+<p>Admin 队列只跑管理命令，<strong>自己不下场搬数据</strong>。真正干读写的是 I/O 队列——由 Admin 发命令创建。</p>
+<h3 id="61-create-io-cq410-423-行">6.1 Create I/O CQ（410-423 行）</h3>
+<pre class="hljs"><code><div>sqe.opcode = NVME_ADMIN_CREATE_CQ;      <span class="hljs-comment">// opcode 0x05</span>
+sqe.prp1 = cpu_to_le64(q-&gt;cq_dma);      <span class="hljs-comment">// CQ 内存的总线地址</span>
+sqe.cdw10 = cpu_to_le32((q-&gt;qid &amp; <span class="hljs-number">0xffff</span>) | ((q-&gt;q_depth - <span class="hljs-number">1</span>) &lt;&lt; <span class="hljs-number">16</span>));
+                                        <span class="hljs-comment">// 低16位=qid，高16位=深度-1</span>
+sqe.cdw11 = cpu_to_le32(<span class="hljs-number">0x3</span> | ((q-&gt;qid - <span class="hljs-number">1</span>) &lt;&lt; <span class="hljs-number">16</span>));
+                                        <span class="hljs-comment">// ★ PC=1 物理连续, IEN=1 使能中断,</span>
+                                        <span class="hljs-comment">//   IV=qid-1 绑定第 qid-1 号 MSI-X 向量</span>
+</div></code></pre>
+<p><strong><code>cdw11</code> 是本项目最精妙的参数之一</strong>：</p>
+<ul>
+<li><code>PC=1</code>：CQ 内存物理连续（<code>dmam_alloc_coherent</code> 保证），所以 PRP1 一个地址就能描述整个 CQ</li>
+<li><code>IEN=1</code>：这个 CQ 完成时<strong>发中断</strong>（Admin 队列没设这个位，所以是轮询）</li>
+<li><code>IV=qid-1</code>：<strong>每个 I/O 队列绑一个独立的 MSI-X 向量</strong>——中断到来时按向量号直接知道是哪个队列完成的。这是多队列性能的根基（阶段 5），也是面试必问的&quot;NVMe 怎么把中断分到多个 CPU&quot;的答案。</li>
+</ul>
+<h3 id="62-create-io-sq426-439-行">6.2 Create I/O SQ（426-439 行）</h3>
+<pre class="hljs"><code><div>sqe.opcode = NVME_ADMIN_CREATE_SQ;      <span class="hljs-comment">// opcode 0x01</span>
+sqe.prp1 = cpu_to_le64(q-&gt;sq_dma);
+sqe.cdw10 = cpu_to_le32((q-&gt;qid &amp; <span class="hljs-number">0xffff</span>) | ((q-&gt;q_depth - <span class="hljs-number">1</span>) &lt;&lt; <span class="hljs-number">16</span>));
+sqe.cdw11 = cpu_to_le32(<span class="hljs-number">0x1</span> | (q-&gt;qid &lt;&lt; <span class="hljs-number">16</span>));  <span class="hljs-comment">// PC=1, CQID=qid：SQ 关联到哪个 CQ</span>
+</div></code></pre>
+<p><strong>顺序必须是先 CQ 后 SQ</strong>（NVMe 规范）：SQ 要挂到 CQ 上，CQ 不存在就创建 SQ 会失败。</p>
+<h3 id="63-nvme_alloc_io_queue458-501-行-一个队列对的完整诞生">6.3 <code>nvme_alloc_io_queue</code>（458-501 行）—— 一个队列对的完整诞生</h3>
+<pre class="hljs"><code><div>q-&gt;irq = pci_irq_vector(dev-&gt;pdev, qid - <span class="hljs-number">1</span>);     <span class="hljs-comment">// 向量号 = qid-1（对应上文的 IV）</span>
+q-&gt;tags = dev-&gt;tag_set.tags[qid - <span class="hljs-number">1</span>];            <span class="hljs-comment">// 借 blk-mq 的 tag 表做映射</span>
+
+q-&gt;sq = dmam_alloc_coherent(&amp;dev-&gt;pdev-&gt;dev,
+		q-&gt;q_depth * <span class="hljs-keyword">sizeof</span>(<span class="hljs-keyword">struct</span> nvme_sqe), &amp;q-&gt;sq_dma, GFP_KERNEL);
+q-&gt;cq = dmam_alloc_coherent(...);                <span class="hljs-comment">// 队列内存：一致性 DMA</span>
+
+<span class="hljs-keyword">if</span> ((q-&gt;sq_dma &amp; <span class="hljs-number">0xfff</span>) || (q-&gt;cq_dma &amp; <span class="hljs-number">0xfff</span>)) { ... <span class="hljs-keyword">return</span> -EIO; }  <span class="hljs-comment">// 4KB 对齐检查</span>
+
+nvme_create_io_cq(dev, q);   <span class="hljs-comment">// 1. 先 CQ</span>
+nvme_create_io_sq(dev, q);   <span class="hljs-comment">// 2. 后 SQ</span>
+
+request_irq(q-&gt;irq, nvme_irq, <span class="hljs-number">0</span>, <span class="hljs-string">&quot;nvme-io&quot;</span>, q);  <span class="hljs-comment">// 3. 绑中断（dev_id=q 指针）</span>
+</div></code></pre>
+<p>三个细节：</p>
+<ol>
+<li><strong><code>dmam_alloc_coherent</code></strong>：devres 托管版的一致性 DMA 分配，remove 时自动释放（1070 行注释）；返回的 <code>sq_dma</code> 保证物理连续、4KB 对齐、cache 一致性。</li>
+<li><strong>4KB 对齐检查是防御性编程</strong>：coherent 分配理论上一定对齐，但驱动对协议约束（PRP 要求页对齐）显式校验，不合格就拒绝——真实项目该有的态度。</li>
+<li><strong><code>request_irq</code> 的 <code>dev_id=q</code></strong>：中断处理函数 <code>nvme_irq(irq, data)</code> 的 <code>data</code> 就是它，中断来了直接拿到队列指针，不用查表。</li>
+</ol>
+<p><strong>队列拓扑图</strong>（2 核 QEMU 实际拓扑）：</p>
+<pre class="hljs"><code><div>         Admin 队列对 (qid=0, 深度32, 轮询)
+              │ 创建 ↓
+   ┌──────────┼──────────┐
+ qid=1              qid=2           (每 CPU 一对)
+ SQ↔CQ 深度64       SQ↔CQ 深度64
+ irq=vec0          irq=vec1
+ └── blk-mq hctx0 ──┴── blk-mq hctx1 ──┘
+        ↓ tag 映射
+ /dev/nvme0n1（一个 gendisk，多 hw queue）
+</div></code></pre>
+<p><strong>口述自测</strong>：为什么创建顺序是先 CQ 后 SQ？<code>IV=qid-1</code> 这个绑定解决了什么问题？</p>
+<hr>
+<h2 id="第-7-讲blk-mq-数据通路739807-行-框架的入口">第 7 讲：blk-mq 数据通路（739~807 行）—— 框架的入口</h2>
+<h3 id="71-nvme_queue_rq775-791-行-blk-mq-框架的回调">7.1 <code>nvme_queue_rq</code>（775-791 行）—— blk-mq 框架的回调</h3>
+<pre class="hljs"><code><div><span class="hljs-type">static</span> <span class="hljs-type">blk_status_t</span> <span class="hljs-title function_">nvme_queue_rq</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> blk_mq_hw_ctx *hctx,
+				  <span class="hljs-type">const</span> <span class="hljs-keyword">struct</span> blk_mq_queue_data *bd)</span>
+{
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">nvme_queue</span> *<span class="hljs-title">q</span> =</span> hctx-&gt;driver_data;   <span class="hljs-comment">// init_hctx 时挂上去的队列指针</span>
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">request</span> *<span class="hljs-title">rq</span> =</span> bd-&gt;rq;
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">nvme_cmd</span> *<span class="hljs-title">cmd</span> =</span> blk_mq_rq_to_pdu(rq);  <span class="hljs-comment">// 拿到&quot;草稿纸&quot;</span>
+	<span class="hljs-type">blk_status_t</span> ret;
+
+	blk_mq_start_request(rq);   <span class="hljs-comment">// 标记开始（超时计时从这里起算）</span>
+
+	ret = nvme_map_and_submit(q, rq, cmd);   <span class="hljs-comment">// 翻译成 SQE 并提交</span>
+	<span class="hljs-keyword">if</span> (ret != BLK_STS_OK)
+		nvme_unmap_data(q-&gt;dev, cmd, rq);   <span class="hljs-comment">// 失败就地清理</span>
+
+	<span class="hljs-keyword">return</span> ret;   <span class="hljs-comment">// BLK_STS_OK = &quot;已提交，不等结果&quot;（异步）</span>
+}
+</div></code></pre>
+<p><strong>关键认知</strong>：<code>queue_rq</code> 运行在<strong>原子上下文（自旋锁内），不能睡眠</strong>。所以里面的分配要用 <code>GFP_ATOMIC</code>（533 行的 PRP 池分配），映射失败要当场清理。返回 <code>BLK_STS_OK</code> 不代表 IO 完成，只代表&quot;已送达设备&quot;——真正的完成在中断里。</p>
+<h3 id="72-nvme_map_and_submit739-773-行-request--sqe-的翻译器">7.2 <code>nvme_map_and_submit</code>（739-773 行）—— request → SQE 的翻译器</h3>
+<pre class="hljs"><code><div><span class="hljs-type">static</span> <span class="hljs-type">blk_status_t</span> <span class="hljs-title function_">nvme_map_and_submit</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> nvme_queue *q,
+					<span class="hljs-keyword">struct</span> request *rq, <span class="hljs-keyword">struct</span> nvme_cmd *cmd)</span>
+{
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">nvme_sqe</span> <span class="hljs-title">sqe</span> =</span> { <span class="hljs-number">0</span> };
+
+	cmd-&gt;prp_list = <span class="hljs-literal">NULL</span>;
+	cmd-&gt;nsegs = <span class="hljs-number">0</span>;
+
+	<span class="hljs-keyword">if</span> (blk_rq_bytes(rq) == <span class="hljs-number">0</span>) {
+		<span class="hljs-comment">/* flush 等零数据命令：不用 PRP，直接发 FLUSH */</span>
+		sqe.opcode = NVME_CMD_FLUSH;
+		sqe.nsid = cpu_to_le32(dev-&gt;nsid);
+	} <span class="hljs-keyword">else</span> {
+		<span class="hljs-comment">/* 扇区号 → NVMe LBA：块层 512B 扇区，NVMe 按 lba_shift 算 */</span>
+		u64 slba = blk_rq_pos(rq) &gt;&gt; (dev-&gt;lba_shift - <span class="hljs-number">9</span>);
+
+		ret = nvme_setup_prps(q, cmd, rq, &amp;sqe);   <span class="hljs-comment">// 建 PRP（第 8 讲）</span>
+		<span class="hljs-keyword">if</span> (ret != BLK_STS_OK)
+			<span class="hljs-keyword">return</span> ret;
+
+		sqe.opcode = (rq_data_dir(rq) == WRITE) ?
+			     NVME_CMD_WRITE : NVME_CMD_READ;
+		sqe.nsid = cpu_to_le32(dev-&gt;nsid);
+		sqe.cdw10 = cpu_to_le32(slba &amp; <span class="hljs-number">0xffffffff</span>);   <span class="hljs-comment">// SLBA 低 32 位</span>
+		sqe.cdw11 = cpu_to_le32(slba &gt;&gt; <span class="hljs-number">32</span>);          <span class="hljs-comment">// SLBA 高 32 位</span>
+		sqe.cdw12 = cpu_to_le32(
+			(blk_rq_sectors(rq) &gt;&gt; (dev-&gt;lba_shift - <span class="hljs-number">9</span>)) - <span class="hljs-number">1</span>);  <span class="hljs-comment">// NLB-1</span>
+	}
+	sqe.command_id = rq-&gt;tag;   <span class="hljs-comment">// ★ command_id 直接复用 blk-mq 的 tag</span>
+
+	nvme_submit_sqe(q, &amp;sqe);   <span class="hljs-comment">// 落 SQ + 敲门铃</span>
+	<span class="hljs-keyword">return</span> BLK_STS_OK;
+}
+</div></code></pre>
+<p><strong><code>sqe.command_id = rq-&gt;tag</code> 是全驱动的&quot;对号机制&quot;</strong>：blk-mq 给每个 request 发一个唯一的 tag（0~queue_depth-1 的编号），提交时写进 SQE；设备完成后原样写回 CQE 的 command_id；中断里 <code>blk_mq_tag_to_rq(tags, command_id)</code> 反查 request。<strong>一个字段打通提交与完成，零额外内存</strong>——这就是 blk-mq 和 NVMe 天生合拍的原因（两者都是&quot;命令带编号&quot;模型）。面试必问。</p>
+<h3 id="73-nvme_submit_sqe573-578-行">7.3 <code>nvme_submit_sqe</code>（573-578 行）</h3>
+<pre class="hljs"><code><div><span class="hljs-type">static</span> <span class="hljs-type">void</span> <span class="hljs-title function_">nvme_submit_sqe</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> nvme_queue *q, <span class="hljs-keyword">struct</span> nvme_sqe *sqe)</span>
+{
+	<span class="hljs-built_in">memcpy</span>(&amp;q-&gt;sq[q-&gt;sq_tail], sqe, <span class="hljs-keyword">sizeof</span>(*sqe));   <span class="hljs-comment">// 命令进 SQ</span>
+	q-&gt;sq_tail = (q-&gt;sq_tail + <span class="hljs-number">1</span>) % q-&gt;q_depth;      <span class="hljs-comment">// tail 前进</span>
+	writel(q-&gt;sq_tail, nvme_sq_doorbell(q-&gt;dev, q-&gt;qid));  <span class="hljs-comment">// 敲门铃</span>
+}
+</div></code></pre>
+<p>和 Admin 版（330 行）逻辑相同，但<strong>不等待</strong>——提交完直接返回，这是阶段 4 异步化的核心改动。</p>
+<p><strong>口述自测</strong>：<code>queue_rq</code> 为什么不能睡眠？<code>command_id = rq-&gt;tag</code> 为什么可行？</p>
+<hr>
+<h2 id="第-8-讲prp-构造506578-行-数据通路的灵魂">第 8 讲：PRP 构造（506~578 行）—— 数据通路的灵魂</h2>
+<p><strong>PRP（Physical Region Page）</strong>：NVMe 规范规定，命令里描述数据缓冲区的方式是&quot;页对齐的物理页指针列表&quot;。因为 NVMe 是 DMA 设备，它要的是<strong>物理页地址</strong>，不是虚拟地址。</p>
+<h3 id="81-两种情况的布局图">8.1 两种情况的布局图</h3>
+<p><strong>单页</strong>（数据 ≤ 4KB）：<code>prp1</code> 直接指向数据页，<code>prp2=0</code>：</p>
+<pre class="hljs"><code><div>sqe.prp1 ──▶ [ 数据页 (DMA 地址) ]
+sqe.prp2 = 0
+</div></code></pre>
+<p><strong>多页</strong>（数据 &gt; 4KB）：<code>prp1</code> = 第一页；<code>prp2</code> = 指向一个 <strong>PRP list 页</strong>，页内依次存第 2~N 页的地址：</p>
+<pre class="hljs"><code><div>sqe.prp1 ──▶ [ 数据页1 ]
+sqe.prp2 ──▶ [ PRP list 页（512 个 8B 条目） ]
+              条目0 → 数据页2
+              条目1 → 数据页3
+              ...
+              条目k → 数据页N
+</div></code></pre>
+<p>一页 4096B 放 512 个条目，所以单 PRP list 最多描述 513 页 ≈ 2MB——这正是 854 行 <code>blk_queue_max_hw_sectors(4096)</code> 的来历（块层保证一个请求不超过 2MB，PRP list 一页就够）。<strong>这是一个漂亮的联动</strong>：硬件协议限制 → 驱动给块层的声明 → 块层保证约束，全链路闭环。</p>
+<h3 id="82-nvme_setup_prps506-558-行逐步走">8.2 <code>nvme_setup_prps</code>（506-558 行）逐步走</h3>
+<pre class="hljs"><code><div><span class="hljs-comment">/* 第1步：request 的 bio 链表 → sg 表（scatterlist：多个不连续内存段） */</span>
+cmd-&gt;nsegs = blk_rq_map_sg(rq-&gt;q, rq, cmd-&gt;sg);
+<span class="hljs-comment">/* 第2步：dma_map_sg —— 映射并返回总线地址（可能合并段、可能用 IOMMU） */</span>
+cmd-&gt;nsegs = dma_map_sg(&amp;dev-&gt;pdev-&gt;dev, cmd-&gt;sg, cmd-&gt;nsegs,
+			rq_data_dir(rq));
+<span class="hljs-comment">/* 第3步：单页直接填 prp1，完事 */</span>
+<span class="hljs-keyword">if</span> (length &lt;= PAGE_SIZE) {
+	sqe-&gt;prp1 = cpu_to_le64(sg_dma_address(&amp;cmd-&gt;sg[<span class="hljs-number">0</span>]));
+	sqe-&gt;prp2 = <span class="hljs-number">0</span>;
+	<span class="hljs-keyword">return</span> BLK_STS_OK;
+}
+<span class="hljs-comment">/* 第4步：多页——从 dma_pool 借一个 PRP list 页（原子上下文，GFP_ATOMIC） */</span>
+cmd-&gt;prp_list = dma_pool_alloc(dev-&gt;prp_pool, GFP_ATOMIC, &amp;cmd-&gt;prp_list_dma);
+<span class="hljs-keyword">if</span> (!cmd-&gt;prp_list)
+	<span class="hljs-keyword">return</span> BLK_STS_RESOURCE;   <span class="hljs-comment">// 借不到页：资源不足，明确报错</span>
+
+<span class="hljs-comment">/* 第5步：逐段逐页把地址填进 list（跳过 prp1 已指向的第一页） */</span>
+prp_list = cmd-&gt;prp_list;
+nprps = <span class="hljs-number">0</span>;
+for_each_sg(cmd-&gt;sg, sg, cmd-&gt;nsegs, i) {
+	<span class="hljs-type">dma_addr_t</span> dma = sg_dma_address(sg);
+	<span class="hljs-type">int</span> npages = DIV_ROUND_UP(sg_dma_len(sg), PAGE_SIZE);
+	<span class="hljs-keyword">for</span> (j = <span class="hljs-number">0</span>; j &lt; npages; j++) {
+		<span class="hljs-keyword">if</span> (first) { first = <span class="hljs-number">0</span>; <span class="hljs-keyword">continue</span>; }   <span class="hljs-comment">// 跳过第一页</span>
+		prp_list[nprps++] = cpu_to_le64(dma + j * PAGE_SIZE);
+	}
+}
+sqe-&gt;prp2 = cpu_to_le64(cmd-&gt;prp_list_dma);   <span class="hljs-comment">// prp2 = list 页的地址</span>
+</div></code></pre>
+<p>三个考点：</p>
+<ol>
+<li><strong><code>blk_rq_map_sg</code> + <code>dma_map_sg</code> 两步缺一不可</strong>：前者是&quot;逻辑上把 bio 拆成段&quot;，后者是&quot;映射成总线地址&quot;。用 <code>sg_dma_address/sg_dma_len</code> 取映射后的地址，不能用 <code>sg_phys</code>（IOMMU 平台下两者不同）。</li>
+<li><strong><code>dma_pool</code></strong>：预建的一页大小的池子。为什么不用每次 <code>dma_alloc_coherent</code> 一页？——<code>queue_rq</code> 在原子上下文，且 IO 频繁，池化分配快且无碎片。PRP list 页用完还回池（565 行 <code>dma_pool_free</code>），<strong>页本身是共享的，用的时候借用，用完归还</strong>。</li>
+<li><strong>PRP 要求数据页对齐、长度页整数倍</strong>：块设备 IO 天然满足（页缓存按页管理），所以按页拆分安全。真实 NVMe 驱动还要处理非对齐场景（页内偏移要拆 PRP 链），本项目用块层约束规避了。</li>
+</ol>
+<h3 id="83-nvme_unmap_data561-571-行-完成后的清理">8.3 <code>nvme_unmap_data</code>（561-571 行）—— 完成后的清理</h3>
+<pre class="hljs"><code><div><span class="hljs-keyword">if</span> (cmd-&gt;prp_list) {
+	dma_pool_free(dev-&gt;prp_pool, cmd-&gt;prp_list, cmd-&gt;prp_list_dma);  <span class="hljs-comment">// 还池</span>
+	cmd-&gt;prp_list = <span class="hljs-literal">NULL</span>;
+}
+<span class="hljs-keyword">if</span> (cmd-&gt;nsegs &gt; <span class="hljs-number">0</span>)
+	dma_unmap_sg(&amp;dev-&gt;pdev-&gt;dev, cmd-&gt;sg, cmd-&gt;nsegs, rq_data_dir(rq));  <span class="hljs-comment">// 解映射</span>
+</div></code></pre>
+<p>映射是借，解映射是还。<strong>方向参数两次必须一致</strong>（map 时 <code>rq_data_dir(rq)</code>，unmap 时也是）——DMA 方向影响 cache 维护操作，写反了在非一致性平台上会数据损坏。这类&quot;成对 API 参数必须一致&quot;是驱动面试高频陷阱题。</p>
+<p><strong>口述自测</strong>：为什么 max_hw_sectors 设 4096（2MB）？PRP list 页为什么用 dma_pool 而不是每次现分配？</p>
+<hr>
+<h2 id="第-9-讲中断完成626703-行-上半部与下半部">第 9 讲：中断完成（626~703 行）—— 上半部与下半部</h2>
+<p>阶段 4 起，I/O 完成不再轮询，改走中断。设计分两层：</p>
+<pre class="hljs"><code><div>设备写 CQE ──▶ MSI-X 中断 ──▶ 上半部 nvme_irq（硬中断）
+                                  │ 只做：收割 CQ + 记状态 + blk_mq_complete_request
+                                  ▼
+                           blk-mq 软中断（BLOCK softirq）
+                                  │ 调 .complete 回调
+                                  ▼
+                          下半部 nvme_mq_complete（软中断上下文）
+                                  只做：unmap + end_request
+</div></code></pre>
+<p><strong>为什么分两层？</strong> 硬中断期间本 CPU 别的活全停，所以要快。unmap（cache 操作、池归还）相对重，放软中断做。对标内核 <code>drivers/nvme/host/pci.c</code> 的相同设计。</p>
+<h3 id="91-nvme_irq695-703-行-硬中断入口">9.1 <code>nvme_irq</code>（695-703 行）—— 硬中断入口</h3>
+<pre class="hljs"><code><div><span class="hljs-type">static</span> <span class="hljs-type">irqreturn_t</span> <span class="hljs-title function_">nvme_irq</span><span class="hljs-params">(<span class="hljs-type">int</span> irq, <span class="hljs-type">void</span> *data)</span>
+{
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">nvme_queue</span> *<span class="hljs-title">q</span> =</span> data;   <span class="hljs-comment">// request_irq 时传入的队列指针</span>
+
+	<span class="hljs-keyword">if</span> (irq_loss)
+		<span class="hljs-keyword">return</span> IRQ_NONE;   <span class="hljs-comment">// ★ 故障注入开关：模拟丢中断（验证超时恢复用）</span>
+
+	<span class="hljs-keyword">return</span> nvme_process_cq(q) ? IRQ_HANDLED : IRQ_NONE;
+}
+</div></code></pre>
+<p><code>IRQ_HANDLED</code> vs <code>IRQ_NONE</code> 是中断协议：没收割到任何 CQE 就报 NONE（可能是共享中断里别的设备的中断，让内核继续找别的 handler）。<strong><code>irq_loss</code> 是本项目最妙的设计</strong>——驱动自带故障注入，一个模块参数就能演练&quot;中断丢了怎么办&quot;，这是&quot;过程可追溯&quot;的工程证据（阶段 5b 的验证手段）。</p>
+<h3 id="92-nvme_process_cq671-692-行-收割-cq">9.2 <code>nvme_process_cq</code>（671-692 行）—— 收割 CQ</h3>
+<pre class="hljs"><code><div><span class="hljs-type">static</span> <span class="hljs-type">int</span> <span class="hljs-title function_">nvme_process_cq</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> nvme_queue *q)</span>
+{
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">nvme_cqe</span> *<span class="hljs-title">cqe</span>;</span>
+	<span class="hljs-type">int</span> handled = <span class="hljs-number">0</span>;
+
+	<span class="hljs-keyword">for</span> (;;) {
+		cqe = &amp;q-&gt;cq[q-&gt;cq_head];
+		<span class="hljs-keyword">if</span> ((le16_to_cpu(cqe-&gt;status) &amp; <span class="hljs-number">0x1</span>) != q-&gt;cq_phase)
+			<span class="hljs-keyword">break</span>;   <span class="hljs-comment">// P 位不匹配：没有新结果了，收工</span>
+
+		handled++;
+		nvme_complete_rq(q, cqe);   <span class="hljs-comment">// 处理这一条</span>
+
+		q-&gt;cq_head = (q-&gt;cq_head + <span class="hljs-number">1</span>) % q-&gt;q_depth;
+		<span class="hljs-keyword">if</span> (q-&gt;cq_head == <span class="hljs-number">0</span>)
+			q-&gt;cq_phase = !q-&gt;cq_phase;   <span class="hljs-comment">// 转一圈，翻转期望相位</span>
+	}
+
+	<span class="hljs-keyword">if</span> (handled)
+		writel(q-&gt;cq_head, nvme_cq_doorbell(q-&gt;dev, q-&gt;qid));  <span class="hljs-comment">// 批量释放 CQ 位置</span>
+	<span class="hljs-keyword">return</span> handled;
+}
+</div></code></pre>
+<p><strong>为什么用 <code>for(;;)</code> 一次收完所有就绪的 CQE？</strong> 一次中断可能对应多条完成（设备攒批），只收一条就浪费中断。收完统一敲一次 CQ head doorbell——<strong>门铃按批敲，不按条敲</strong>，这是高性能驱动的标准姿势。</p>
+<h3 id="93-nvme_complete_rq627-657-行-把-cqe-对上-request">9.3 <code>nvme_complete_rq</code>（627-657 行）—— 把 CQE 对上 request</h3>
+<pre class="hljs"><code><div>u16 command_id = le16_to_cpu(cqe-&gt;command_id);
+
+<span class="hljs-comment">/* command_id 即提交时的 rq-&gt;tag，blk-mq 反向查 request */</span>
+rq = blk_mq_tag_to_rq(q-&gt;tags, command_id);
+<span class="hljs-keyword">if</span> (unlikely(!rq)) { ... <span class="hljs-keyword">return</span>; }   <span class="hljs-comment">// 找不到：防御（正常不会发生）</span>
+
+cmd = blk_mq_rq_to_pdu(rq);
+cmd-&gt;status = status;   <span class="hljs-comment">// 记下状态，下半部读</span>
+
+<span class="hljs-keyword">if</span> (status) { ... }     <span class="hljs-comment">// 失败：打日志（sct/sc/dnr 全拆开，方便定位）</span>
+
+blk_mq_complete_request(rq);   <span class="hljs-comment">// ★ 触发异步完成</span>
+</div></code></pre>
+<p><strong><code>blk_mq_complete_request</code> 是&quot;提交 → 完成&quot;闭环的另一半</strong>：它把 request 推进完成流程（多数情况下排队到软中断，调 <code>.complete</code> 回调）。</p>
+<h3 id="94-nvme_mq_complete660-668-行-下半部收尾">9.4 <code>nvme_mq_complete</code>（660-668 行）—— 下半部收尾</h3>
+<pre class="hljs"><code><div><span class="hljs-type">static</span> <span class="hljs-type">void</span> <span class="hljs-title function_">nvme_mq_complete</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> request *rq)</span>
+{
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">pcie_nvme_dev</span> *<span class="hljs-title">dev</span> =</span> rq-&gt;q-&gt;queuedata;
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">nvme_cmd</span> *<span class="hljs-title">cmd</span> =</span> blk_mq_rq_to_pdu(rq);
+	<span class="hljs-type">blk_status_t</span> ret = nvme_error_status(cmd-&gt;status);  <span class="hljs-comment">// 状态码 → blk 返回码</span>
+
+	nvme_unmap_data(dev, cmd, rq);   <span class="hljs-comment">// 还 PRP 页、解 sg 映射</span>
+	blk_mq_end_request(rq, ret);     <span class="hljs-comment">// 真正结束 request（唤醒等待者、回收 tag）</span>
+}
+</div></code></pre>
+<p>到 <code>blk_mq_end_request</code>，一条 IO 才算完整落幕：tag 回收（后续请求可复用这个 tag——<strong>这就是 command_id 能复用的闭环</strong>）、bio 回报结果、page cache 唤醒。</p>
+<p><strong>口述自测</strong>：为什么不把 unmap 放中断上半部？<code>blk_mq_end_request</code> 之前 tag 能不能给新请求用？</p>
+<hr>
+<h2 id="第-10-讲超时处理705737-行-阶段-5b-的精华">第 10 讲：超时处理（705~737 行）—— 阶段 5b 的精华</h2>
+<p><code>tag_set.timeout = io_timeout * HZ</code>（832 行）声明&quot;每条命令 30 秒&quot;，超时未完成，块层会调 <code>.timeout</code> 回调：</p>
+<pre class="hljs"><code><div><span class="hljs-type">static</span> <span class="hljs-keyword">enum</span> blk_eh_timer_return <span class="hljs-title function_">nvme_timeout</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> request *rq)</span>
+{
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">nvme_queue</span> *<span class="hljs-title">q</span> =</span> rq-&gt;mq_hctx-&gt;driver_data;
+	...
+	dev_warn(..., <span class="hljs-string">&quot;I/O 命令超时: qid=%u tag=%u dir=%s，主动轮询 CQ 恢复\n&quot;</span>, ...);
+
+	<span class="hljs-comment">/* ★ 超时≠设备死了。最常见原因是「中断丢了」：
+	 * 设备已写 CQE，但中断没被处理。所以第一反应不是杀命令，
+	 * 而是主动收割一遍 CQ——把已就绪的命令补完成。 */</span>
+	nvme_process_cq(q);
+
+	<span class="hljs-comment">/* 判断本请求是否已结束：用「不在 IN_FLIGHT」判断。
+	 * 不能用 blk_mq_request_completed()——本项目多队列下完成是同步路径，
+	 * 完成后 state 被重置为 MQ_RQ_IDLE 而非 MQ_RQ_COMPLETE（坑 9）。 */</span>
+	<span class="hljs-keyword">if</span> (blk_mq_rq_state(rq) != MQ_RQ_IN_FLIGHT)
+		<span class="hljs-keyword">return</span> BLK_EH_DONE;      <span class="hljs-comment">// 已补完成，无事发生</span>
+
+	dev_err(..., <span class="hljs-string">&quot;命令仍卡住: ... 无 CQE，重置计时器继续等待...\n&quot;</span>);
+	<span class="hljs-keyword">return</span> BLK_EH_RESET_TIMER;   <span class="hljs-comment">// 真卡住：再给一次机会（进阶：Abort/复位）</span>
+}
+</div></code></pre>
+<p>三个层次：</p>
+<ol>
+<li><strong>设计哲学</strong>：&quot;超时先怀疑中断，不怀疑设备&quot;——poll CQ 一步区分了&quot;中断丢了（可恢复）&quot;和&quot;设备真卡死（不可恢复）&quot;，这是生产级驱动的判断力。<code>irq_loss=1</code> 模块参数就是专门演练这个场景的。</li>
+<li><strong>坑 9</strong>：<code>blk_mq_request_completed()</code> 在<strong>多队列非 IPI 完成路径</strong>下是假阴性——request 完成后 state 被重置为 <code>MQ_RQ_IDLE</code>（不是 <code>MQ_RQ_COMPLETE</code>），用它判断会误报&quot;还在飞&quot;。改判 <code>!= MQ_RQ_IN_FLIGHT</code>（IDLE 和 COMPLETE 都算结束）。这个坑极能体现&quot;你读过内核实现、调试过状态机&quot;。</li>
+<li><strong><code>BLK_EH_RESET_TIMER</code></strong> 是&quot;缓刑&quot;：再等 30 秒。生产级会进一步发 Abort 命令或复位控制器（<code>NVME_CTRL_RESETTING</code> 流程），本项目在注释里如实说明边界——面试时主动说&quot;我知道更完整的做法是什么&quot;，反而加分。</li>
+</ol>
+<p><strong>口述自测</strong>：超时后第一件事为什么是 <code>nvme_process_cq</code>？<code>blk_mq_request_completed</code> 在本项目为什么不能用？</p>
+<hr>
+<h2 id="第-11-讲错误码细分584624-行-阶段-5c">第 11 讲：错误码细分（584~624 行）—— 阶段 5c</h2>
+<p>CQE 的 <code>status</code>（16 位，<code>&gt;&gt;1</code> 后）编码：</p>
+<pre class="hljs"><code><div>bit 14      DNR（Don't Retry：不要重试）
+bit 13:12   M（More：更多状态）/ CRD（重试延迟）
+bit 11:9    SCT（Status Code Type：错误大类）
+bit 8:0     SC（Status Code：具体错误）
+</div></code></pre>
+<p><code>switch (status &amp; 0x7ff)</code> 就是<strong>屏蔽 M/DNR/CRD，只按 <code>SCT&lt;&lt;8|SC</code> 分类</strong>。为什么必须用完整编码？因为<strong>同一个 SC 值在不同 SCT 下含义完全不同</strong>：</p>
+<pre class="hljs"><code><div>SC=0x02  SCT=0（通用）→ INVALID_FIELD（命令字段非法）
+SC=0x02  SCT=2（介质）→ 是别的错误
+SC=0x80  SCT=2（介质）→ LBA_RANGE（访问越界）
+SC=0x80  SCT=1（命令）→ 完全是另一种错
+</div></code></pre>
+<p>所以宏定义里 <code>NVME_SC_LBA_RANGE = 0x80</code>、<code>NVME_SC_WRITE_FAULT = 0x280</code>——<strong>值是 <code>SCT&lt;&lt;8|SC</code> 的完整编码，不是裸 SC</strong>（91 行注释明确写了）。这是新手最容易抄错的点。</p>
+<p>映射逻辑（对标内核 <code>drivers/nvme/host/core.c:252 nvme_error_status</code>）：</p>
+<table>
+<thead>
+<tr>
+<th>NVMe 错误</th>
+<th>blk_status_t</th>
+<th>上层表现</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CAP_EXCEEDED</td>
+<td>NOSPC</td>
+<td>ENOSPC（磁盘满）</td>
+</tr>
+<tr>
+<td>WRITE_FAULT/READ_ERROR 等</td>
+<td>MEDIUM</td>
+<td>EIO（介质坏）</td>
+</tr>
+<tr>
+<td>GUARD/APPTAG/REFTAG_CHECK</td>
+<td>PROTECTION</td>
+<td>校验保护错误</td>
+</tr>
+<tr>
+<td>HOST_PATH_ERROR</td>
+<td>TRANSPORT</td>
+<td>链路错误</td>
+</tr>
+<tr>
+<td>其他</td>
+<td>IOERR</td>
+<td>兜底 EIO</td>
+</tr>
+</tbody>
+</table>
+<p><strong>意义</strong>：块层拿 <code>blk_status_t</code> 转成用户态 errno——<code>dd</code> 写满盘时用户看到的是 <code>No space left on device</code> 而不是笼统的 <code>I/O error</code>。错误语义越精确，上层应用和运维越能对症下药。</p>
+<p><strong>口述自测</strong>：<code>status &amp; 0x7ff</code> 为什么是 0x7ff？<code>LBA_RANGE</code> 为什么编码成 0x80 而不是 0x0？</p>
+<hr>
+<h2 id="第-12-讲blk-mq-框架接入802863-行">第 12 讲：blk-mq 框架接入（802~863 行）</h2>
+<h3 id="121-nvme_mq_ops802-807-行-给框架的回调集">12.1 <code>nvme_mq_ops</code>（802-807 行）—— 给框架的回调集</h3>
+<pre class="hljs"><code><div><span class="hljs-type">static</span> <span class="hljs-type">const</span> <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">blk_mq_ops</span> <span class="hljs-title">nvme_mq_ops</span> =</span> {
+	.queue_rq  = nvme_queue_rq,   <span class="hljs-comment">// 有新请求：提交给设备</span>
+	.complete  = nvme_mq_complete,<span class="hljs-comment">// 完成时：收尾（软中断）</span>
+	.init_hctx = nvme_init_hctx,  <span class="hljs-comment">// 每个硬件队列初始化：挂 driver_data</span>
+	.timeout   = nvme_timeout,    <span class="hljs-comment">// 超时：恢复或放弃</span>
+};
+</div></code></pre>
+<p><strong><code>init_hctx</code>（793-800）是关键细节</strong>：<code>hctx-&gt;driver_data = &amp;dev-&gt;queues[hctx_idx]</code>——blk-mq 的硬件队列和 NVMe 的 I/O 队列<strong>下标一一对应</strong>。之后 <code>queue_rq</code> 从 <code>hctx-&gt;driver_data</code> 拿到队列，<code>timeout</code> 从 <code>rq-&gt;mq_hctx-&gt;driver_data</code> 拿到队列。一个指针打通三个回调。</p>
+<h3 id="122-nvme_setup_disk813-863-行-tag_set-字段逐项">12.2 <code>nvme_setup_disk</code>（813-863 行）—— tag_set 字段逐项</h3>
+<pre class="hljs"><code><div>dev-&gt;tag_set.ops            = &amp;nvme_mq_ops;
+dev-&gt;tag_set.nr_hw_queues   = dev-&gt;nr_queues;   <span class="hljs-comment">// 几个硬件队列（= I/O 队列数）</span>
+dev-&gt;tag_set.queue_depth    = NVME_IO_Q_DEPTH;  <span class="hljs-comment">// 每队列 64 个 tag</span>
+dev-&gt;tag_set.numa_node      = NUMA_NO_NODE;
+dev-&gt;tag_set.flags          = BLK_MQ_F_SHOULD_MERGE;  <span class="hljs-comment">// 允许合并相邻 bio</span>
+dev-&gt;tag_set.cmd_size       = <span class="hljs-keyword">sizeof</span>(<span class="hljs-keyword">struct</span> nvme_cmd); <span class="hljs-comment">// pdu 大小（草稿纸）</span>
+dev-&gt;tag_set.driver_data    = dev;
+dev-&gt;tag_set.timeout        = io_timeout * HZ;   <span class="hljs-comment">// 30 秒超时</span>
+
+ret = blk_mq_alloc_tag_set(&amp;dev-&gt;tag_set);   <span class="hljs-comment">// 分配 tag 表（每队列 64 个）</span>
+
+disk = blk_mq_alloc_disk(&amp;dev-&gt;tag_set, dev); <span class="hljs-comment">// 创建 gendisk + request_queue</span>
+...
+disk-&gt;fops = &amp;nvme_fops;             <span class="hljs-comment">// 空 fops（块设备全靠队列，不用 open/read）</span>
+<span class="hljs-built_in">snprintf</span>(disk-&gt;disk_name, DISK_NAME_LEN, <span class="hljs-string">&quot;nvme%dn%d&quot;</span>, <span class="hljs-number">0</span>, dev-&gt;nsid);  <span class="hljs-comment">// 名字</span>
+set_capacity(disk, dev-&gt;nsze &lt;&lt; (dev-&gt;lba_shift - <span class="hljs-number">9</span>));  <span class="hljs-comment">// 容量（扇区数）</span>
+blk_queue_logical_block_size(disk-&gt;<span class="hljs-built_in">queue</span>, <span class="hljs-number">1u</span> &lt;&lt; dev-&gt;lba_shift);
+blk_queue_physical_block_size(disk-&gt;<span class="hljs-built_in">queue</span>, <span class="hljs-number">1u</span> &lt;&lt; dev-&gt;lba_shift);
+blk_queue_max_hw_sectors(disk-&gt;<span class="hljs-built_in">queue</span>, <span class="hljs-number">4096</span>);  <span class="hljs-comment">// ★ 2MB：与 PRP list 一页呼应</span>
+</div></code></pre>
+<p><strong>块设备 vs 字符设备的框架差异在这张表里最直观</strong>：字符设备注册 <code>file_operations</code> 的 open/read/write；块设备注册 <code>blk_mq_ops</code> 的 queue_rq，<strong>连 open 都没有</strong>——块层框架替你做了所有通用工作（缓存、调度、合并），驱动只管&quot;把请求翻译成设备命令&quot;。<code>disk-&gt;fops</code> 为空结构体就是证据。</p>
+<p><strong>考点</strong>：<code>BLK_MQ_F_SHOULD_MERGE</code> 去掉会怎样？性能下降——相邻 bio 不合并，每个 4K 都单独发命令，IOPS 浪费在命令开销上（fio 数据会难看）。阶段 6 的 fio 对比里 numjobs 扩展 IOPS 的前提就是合并+多队列共同作用。</p>
+<p><strong>口述自测</strong>：<code>hctx-&gt;driver_data</code> 是谁挂上去的？<code>cmd_size</code> 的作用是什么？</p>
+<hr>
+<h2 id="第-13-讲probe--remove-生命周期8651082-行">第 13 讲：probe / remove 生命周期（865~1082 行）</h2>
+<h3 id="131-probe-十六步865-1037-行">13.1 probe 十六步（865-1037 行）</h3>
+<p>PCIe 枚举发现 vendor/device ID 匹配的设备后，内核自动调 probe。<strong>顺序就是资源依赖顺序</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>步</th>
+<th>动作</th>
+<th>行</th>
+<th>作用/考点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>pci_enable_device_mem</code></td>
+<td>876</td>
+<td>开 MEM 空间访问</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>pci_set_master</code></td>
+<td>882</td>
+<td>开 Bus Master（DMA 前提，坑 2）</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>kzalloc(dev)</code> + <code>pci_set_drvdata</code></td>
+<td>884-890</td>
+<td>总管家挂到 pdev 上</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>pci_resource_start/len</code> 读 BAR0</td>
+<td>892-898</td>
+<td>拿 MMIO 基址/长度</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>pci_request_mem_regions</code></td>
+<td>900</td>
+<td>独占 BAR0（防别的驱动抢）</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>devm_ioremap</code></td>
+<td>906</td>
+<td><strong>物理地址 → 内核虚拟地址</strong>（此后 CPU 能访问寄存器）</td>
+</tr>
+<tr>
+<td>7</td>
+<td>读 CAP/VS/CSTS</td>
+<td>913-918</td>
+<td>记录 DSTRD 等能力</td>
+</tr>
+<tr>
+<td>8</td>
+<td>分配 Admin SQ/CQ/Identify（coherent）</td>
+<td>921-946</td>
+<td>含 4KB 对齐防御检查</td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>nvme_enable_ctrl</code></td>
+<td>952</td>
+<td>开机（第 3 讲五步）</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Identify Controller + 打印</td>
+<td>957-960</td>
+<td>验证链路 + 信息</td>
+</tr>
+<tr>
+<td>11</td>
+<td>Identify Namespace</td>
+<td>963-967</td>
+<td>拿容量与 LBA 格式</td>
+</tr>
+<tr>
+<td>12</td>
+<td><code>dma_pool_create</code></td>
+<td>970</td>
+<td>PRP 页池</td>
+</tr>
+<tr>
+<td>13</td>
+<td>算队列数 <code>min(CPU 数, MQES+1)</code></td>
+<td>978</td>
+<td>每 CPU 一队列</td>
+</tr>
+<tr>
+<td>14</td>
+<td><code>pci_alloc_irq_vectors</code></td>
+<td>981-989</td>
+<td>★ 先定中断数，再定队列数（实际分配的向量数可能少于请求）</td>
+</tr>
+<tr>
+<td>15</td>
+<td><code>nvme_setup_disk</code> + 循环建 I/O 队列</td>
+<td>992-1001</td>
+<td>blk-mq + 队列对</td>
+</tr>
+<tr>
+<td>16</td>
+<td><code>add_disk</code></td>
+<td>1003</td>
+<td>★ 最后一步：此后 /dev/nvme0n1 可见、IO 可达</td>
+</tr>
+</tbody>
+</table>
+<p><strong>两个&quot;为什么是这个顺序&quot;（面试高频）</strong>：</p>
+<ol>
+<li><strong><code>pci_alloc_irq_vectors</code> 在 <code>nvme_setup_disk</code> 之前</strong>：<code>nr_queues</code> 是 tag_set 的核心参数，必须等实际分到多少中断向量后才能定死。中断不够（比如系统 MSI-X 向量耗尽）就少建队列——降级而不是失败。</li>
+<li><strong><code>request_irq</code> 在 <code>add_disk</code> 之前</strong>（491 行注释）：add_disk 之后用户态立刻能读写，如果中断还没绑，第一条 IO 就永远等不到完成。</li>
+</ol>
+<h3 id="132-错误处理-goto-链1011-1036-行">13.2 错误处理 goto 链（1011-1036 行）</h3>
+<pre class="hljs"><code><div>out_free_irq:         反删已建 I/O 队列 + free_irq
+out_free_irq_vectors: pci_free_irq_vectors
+out_destroy_pool:     dma_pool_destroy
+out_disable_ctrl:     关控制器
+out_release_regions:  释放 BAR0 区域
+out_free_dev:         kfree(dev)
+out_disable_device:   pci_disable_device
+</div></code></pre>
+<p><strong>每个 goto 标签只清理&quot;到这个阶段为止已成功的资源&quot;</strong>——这是内核驱动的标准错误处理模式（内核不用 C++ RAII，靠 goto 链保证不泄漏）。面试官看到这个链条就知道你写过正经 probe。</p>
+<h3 id="133-remove-反向清理1039-1073-行">13.3 remove 反向清理（1039-1073 行）</h3>
+<pre class="hljs"><code><div>del_gendisk(dev-&gt;disk);   <span class="hljs-comment">// 1. 先从块层摘掉（内部 quiesce 队列、等在途 IO 结束）</span>
+<span class="hljs-keyword">for</span> (...) {
+	free_irq(...);            <span class="hljs-comment">// 2. 此时无 IO，安全摘中断</span>
+	nvme_delete_io_queue(...); <span class="hljs-comment">// 3. 删 I/O 队列（Admin 命令，控制器还活着）</span>
+}
+pci_free_irq_vectors(pdev);  <span class="hljs-comment">// 4. 释放中断向量</span>
+blk_mq_free_tag_set(...);    <span class="hljs-comment">// 5. 释放 tag</span>
+dma_pool_destroy(...);       <span class="hljs-comment">// 6. 毁池</span>
+put_disk(...);               <span class="hljs-comment">// 7. 释放 gendisk</span>
+nvme_disable_ctrl(dev);      <span class="hljs-comment">// 8. 关机（最后关控制器）</span>
+kfree(dev-&gt;queues); kfree(dev);  <span class="hljs-comment">// 9. 释放内存（coherent 由 devres 自动清）</span>
+</div></code></pre>
+<p><strong>顺序哲学 = probe 的镜像</strong>：&quot;先摘盘（停新 IO）→ 再摘中断（停完成）→ 再删队列 → 最后关控制器&quot;。<code>del_gendisk</code> 放第一步是因为它内部会等所有在途 IO 完成——之后摘中断才安全（不会有&quot;中断处理到一半 handler 被 free&quot;的竞态）。</p>
+<h3 id="134-模块注册1075-1082-行">13.4 模块注册（1075-1082 行）</h3>
+<pre class="hljs"><code><div><span class="hljs-type">static</span> <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">pci_driver</span> <span class="hljs-title">pcie_nvme_driver</span> =</span> {
+	.name     = <span class="hljs-string">&quot;pcie_nvme&quot;</span>,
+	.id_table = pcie_nvme_id_table,  <span class="hljs-comment">// vendor/device ID 匹配表</span>
+	.probe    = pcie_nvme_probe,
+	.remove   = pcie_nvme_remove,
+};
+module_pci_driver(pcie_nvme_driver);
+</div></code></pre>
+<p><code>module_pci_driver</code> 是宏，展开成 module_init/module_exit 包装——<strong>PCI 驱动没有 open/read，只有 probe/remove</strong>。insmod 时内核扫 PCIe 总线，匹配 id_table 就调 probe；rmmod 时调 remove。</p>
+<p><strong>口述自测</strong>：add_disk 之后发生了什么，让 request_irq 必须在它之前？remove 为什么先 del_gendisk 再 free_irq？</p>
+<hr>
+<h2 id="第-14-讲一条读请求的完整旅程串讲所有模块">第 14 讲：一条读请求的完整旅程（串讲所有模块）</h2>
+<p>以用户 <code>dd if=/dev/nvme0n1 bs=64K count=1</code> 为例（假设 2 页数据）：</p>
+<pre class="hljs"><code><div>1. VFS 收到 read → page cache 未命中 → 生成 bio
+2. bio 进入 blk-mq 的软件队列 → 分配 tag（比如 tag=7）
+3. blk-mq 调度到某 hctx → 调 nvme_queue_rq            [775行]
+4. blk_mq_start_request（超时计时开始）
+5. nvme_map_and_submit                               [739行]
+     - slba = 扇区号 &gt;&gt; (lba_shift-9)
+     - nvme_setup_prps：bio→sg 表→dma_map_sg          [506行]
+       · 64K=16 页：prp1=页0，dma_pool 借一页放页1..15
+       · sqe.prp2 = PRP list 页地址
+     - sqe.command_id = 7（= tag）
+6. nvme_submit_sqe：SQ[tail]=sqe, tail+1, 敲 SQ tail 门铃 [573行]
+7. queue_rq 返回 BLK_STS_OK（不等结果）
+   —— 设备侧：看到门铃 → DMA 读 SQE → 按 PRP DMA 把 16 页数据写进内存
+8. 设备写 CQ[head]={command_id=7, P=phase} → 发 MSI-X 中断
+9. 中断 → nvme_irq → nvme_process_cq                   [695/671行]
+     - 读到 P 匹配的 CQE，nvme_complete_rq               [627行]
+       · blk_mq_tag_to_rq(tags, 7) → 找回 request
+       · cmd-&gt;status 记录，blk_mq_complete_request
+     - 敲 CQ head 门铃（释放位置）
+10. 块层软中断 → nvme_mq_complete                      [660行]
+      - nvme_error_status：status→BLK_STS_OK
+      - nvme_unmap_data：还 PRP 页、unmap sg
+      - blk_mq_end_request：回收 tag=7、bio 结束
+11. page cache 填充完毕 → dd 读回数据 → 比对 MATCH
+</div></code></pre>
+<p><strong>如果第 8 步中断丢了</strong>：30 秒后块层调 <code>nvme_timeout</code>（706 行）→ 主动 <code>nvme_process_cq</code> 收割 → 补完成 → <code>BLK_EH_DONE</code>。<strong>数据没丢，只是晚到</strong>——这就是阶段 5b 验证过的结论。</p>
+<hr>
+<h2 id="附口述自测-20-问全部能答上--源码通关">附：口述自测 20 问（全部能答上 = 源码通关）</h2>
+<ol>
+<li>CC 寄存器一次写入配置了哪 6 样东西？</li>
+<li>DSTRD 是什么？doorbell 地址怎么算？</li>
+<li>P 位为什么能判断 CQE 新旧？</li>
+<li>一条队列有几个 doorbell？各自敲在什么时机？</li>
+<li>使能控制器的顺序为什么是 AQA/ASQ/ACQ → CC.EN？</li>
+<li>ASQ/ACQ 写的是虚拟地址还是总线地址？为什么？</li>
+<li>Admin 队列为什么不配中断？</li>
+<li>NN 字段为什么在 offset 516？</li>
+<li>创建 I/O 队列为什么先 CQ 后 SQ？</li>
+<li>IV=qid-1 解决了什么问题？</li>
+<li>queue_rq 为什么不能睡眠？证据是什么？</li>
+<li>command_id 为什么能复用 rq-&gt;tag？闭环在哪？</li>
+<li>PRP 单页和多页分别怎么描述？</li>
+<li>max_hw_sectors 为什么设 4096？和 PRP 什么关系？</li>
+<li>PRP list 页为什么用 dma_pool？</li>
+<li>为什么不把 unmap 放中断上半部？</li>
+<li>超时后第一件事为什么是 poll CQ？</li>
+<li>blk_mq_request_completed 为什么不能用？</li>
+<li>错误码为什么用 status &amp; 0x7ff 而不是裸 SC？</li>
+<li>request_irq 为什么必须在 add_disk 之前？</li>
+</ol>
+<p>（答案都在上文对应讲次里，答不上就翻回去重读那一讲。）</p>
+
+</body>
+</html>
