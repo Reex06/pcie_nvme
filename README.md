@@ -17,6 +17,7 @@
 | [CODE_WALKTHROUGH.md](./CODE_WALKTHROUGH.md) | 源码精讲（按讲次、带行号、宏值来源、口述自测 23 问） | 对照代码逐讲精读 |
 | [LEARN.md](./LEARN.md) | 学习路线图 + 必掌握知识库（阶段 0 设备树实操） | 补前置基础 |
 | [INTERVIEW.md](./INTERVIEW.md) | 项目答辩话术（高频追问 + 标准答案） | 面试前背 |
+| [STUDY_PLAN.md](./STUDY_PLAN.md) | 一周学习计划（23 问打卡 + 9 坑故事 + 模拟面试） | 现在开始按这个走 |
 | [ROADMAP.md](./ROADMAP.md) | 开发进度与后续计划 | 了解项目演进 |
 
 ---
