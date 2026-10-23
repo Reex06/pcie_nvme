@@ -9,6 +9,18 @@
 
 ---
 
+## 文档导航
+
+| 文档 | 内容 | 适合谁 |
+|---|---|---|
+| [TUTORIAL.md](./TUTORIAL.md) | 对话式入门讲解 12 段（口语+类比，一次一个知识点） | 第一次接触 PCIe/NVMe，先读这个 |
+| [CODE_WALKTHROUGH.md](./CODE_WALKTHROUGH.md) | 源码精讲（按讲次、带行号、宏值来源、口述自测 23 问） | 对照代码逐讲精读 |
+| [LEARN.md](./LEARN.md) | 学习路线图 + 必掌握知识库（阶段 0 设备树实操） | 补前置基础 |
+| [INTERVIEW.md](./INTERVIEW.md) | 项目答辩话术（高频追问 + 标准答案） | 面试前背 |
+| [ROADMAP.md](./ROADMAP.md) | 开发进度与后续计划 | 了解项目演进 |
+
+---
+
 ## 一、为什么做这个项目（选题考量）
 
 原目标板 i.MX6ULL（32 位 ARM）**硬件上没有 PCIe 控制器**，无法开展 PCIe 驱动实践。切换为 QEMU arm64 `virt` 机器后，NVMe 是覆盖 PCIe 全链路最完整、含金量最高的设备：
